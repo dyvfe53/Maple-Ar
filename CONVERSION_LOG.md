@@ -951,13 +951,14 @@ go_pc.js 선례(CONVERSION_LOG.md #2)를 그대로 따름: **`selection == 0` �
   - **미확인**: ArgonMS 숫자 아이템 ID(예: 4031161)를 MSW의 실제 `itemType` 자산에 매핑하는 방법
     (`_ItemService:CreateItem`의 첫 인자가 정확히 뭘 받는지 — 공식 예제엔 `TestItem`이라는 리터럴 자산
     참조처럼 나와 있어 별도 아이템 정의 자산이 필요해 보임).
-- **moonflower.js (Reactor 9108000~9108005, 헤네시스 파티퀘스트 "달맞이꽃") — 미구현, 설계 방향만 기록**:
+- **moonflower.js (Reactor 9108000~9108005, 헤네시스 파티퀘스트 "달맞이꽃")** → `scripts/components/MoonflowerReactor.lua`.
   원본은 `reactor.getEvent("moonrabbit")`로 파티퀘스트 공유 이벤트 객체를 얻어 `flowers`라는 공유 카운터를
-  1 증가시키고, 6이 되면 몬스터(달토끼)를 스폰함. MSW의 `RoomSharedMemory`(API Reference 확인)가
-  `GetVariableAndWait(name)`/`SetVariableAndWait(name, value)`를 제공해 이 "여러 리액터가 공유하는 카운터"
-  개념과 정확히 대응되고, 몬스터 스폰은 `_SpawnService:SpawnByModelId(modelId, name, position, parent)`
-  (API Reference 확인)로 가능해 보임. **다만 `RoomSharedMemory` 인스턴스 자체를 얻는 방법(아마 `_RoomService`
-  경유로 추정)을 아직 확인 못 해서 완전한 구현은 보류** — 다음 조사 항목으로 `docs/msw_lua_notes.md`에 추가.
+  1 증가시키고, 6이 되면 몬스터(달토끼)를 스폰함. `_RoomService:GetSharedMemory(name)` →
+  `RoomSharedMemory:GetVariableAndWait`/`SetVariableAndWait`로 공유 카운터, `_SpawnService:SpawnByModelId(...)`로
+  몬스터 스폰 — 전부 API Reference로 확인 완료해서 실제 구현함.
+  - **미검증 세부사항**: `GetVariableAndWait`가 반환하는 `SharedVariableResult`에서 실제 값을 꺼내는
+    필드명(`result.Value`로 추정), 변수가 아직 없을 때의 동작 방식, `Vector3` 생성자 시그니처 — 코드에
+    TODO로 표시해둠. 스폰 좌표(-180,-196)는 원본 그대로 옮겼으나 MSW 맵은 새로 제작하므로 실제 좌표
+    재조정 필요.
 
-**요약**: 3개 중 2개(고물상자, nut) 변환 완료, 1개(달맞이꽃, 파티퀘스트 공유상태+몬스터스폰)는 핵심 API
-2/3까지 확인했으나 `RoomSharedMemory` 획득 방법 미확인으로 보류.
+**요약**: 3개 전부 변환 완료(고물상자, nut, 달맞이꽃).

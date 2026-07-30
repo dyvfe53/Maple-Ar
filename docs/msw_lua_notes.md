@@ -264,7 +264,14 @@ ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)�
   - `HitComponent`/`HitEvent` 확인 완료 — 몬스터/리액터처럼 "공격받는 오브젝트"의 표준 패턴.
   - `RoomSharedMemory`(Misc) 확인 완료 — `GetVariableAndWait(name)`/`SetVariableAndWait(name, value)`로
     ArgonMS의 파티퀘스트 이벤트 공유변수(`event.getVariable/setVariable`)와 정확히 대응.
-    **단, 이 `RoomSharedMemory` 인스턴스 자체를 얻는 방법(아마 `_RoomService` 경유로 추정)은 미확인.**
+    획득 방법도 확인 완료: `_RoomService:GetSharedMemory(name)` → `(errorCode, RoomSharedMemory)`.
+  - **`_RoomService`가 파티퀘스트/인스턴스 개념 자체를 내장 지원함(task #8 이벤트 스크립트에 중요)**:
+    `CreateInstanceRoom(key, mapNames)`/`GetOrCreateInstanceRoom(key)` — 특정 맵들로 구성된 격리된
+    "인스턴스 룸" 생성(ArgonMS가 파티퀘스트마다 `event`/`makeEvent`로 직접 구현하던 것과 동일한 개념이
+    엔진에 내장). `MoveUsersToInstanceRoom`/`MoveUsersToStaticRoom`로 유저를 인스턴스 안팎으로 이동.
+    `RoomBeginEvent`/`RoomEndEvent`(룸 생성/파괴 시점 이벤트)도 있음. ArgonMS의
+    `scripts/events/*.js`(moonrabbit, cloneFight, party1, ship_* 등 파티퀘스트/인스턴스 이벤트)를
+    변환할 때 이 룸 시스템이 핵심 대응점이 될 것으로 보임.
   - `_SpawnService:SpawnByModelId(modelId, name, position, parent)` 확인 완료 — 몬스터 스폰 등에 사용 가능
     (`map.spawnMob(...)` 대응).
   - **월드 드랍(바닥에 아이템이 떨어지고 걸어가서 줍는 연출) 전용 시스템 유무 미확인** — 지금까지는
