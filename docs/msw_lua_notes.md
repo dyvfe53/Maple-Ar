@@ -233,6 +233,29 @@ ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)�
 - `storage:GetAndWait(key)` → `(int32 errorCode, string value)`. `storage:SetAndWait(key, value)` →
   `int32 errorCode`. Batch 버전(`BatchGetAndWait` 등)도 있음. (참고: `Misc/UserDataStorage` 페이지 확인)
 
+## 퀘스트 시스템 — **내장 시스템 없음(확정)**, 인벤토리/아이템 시스템은 있음(확정)
+
+- Components/Services 전체 목록을 여러 번 훑어봤지만 "Quest"라는 이름의 컴포넌트/서비스가 **전혀 없음**.
+  MSW는 메이플스토리 전용 RPG 엔진이 아니라 범용 UGC 플랫폼(로블록스 스튜디오에 가까움)이라, 퀘스트
+  진행상태 추적·퀘스트 로그 UI·퀘스트 지급/완료 판정 같은 건 **엔진 기능이 아니라 크리에이터가 직접
+  만들어야 하는 것**으로 확정.
+  - **대안 설계**: 퀘스트 상태도 그냥 `UserDataStorage`에 문자열 키로 직접 저장/조회하면 됨
+    (예: 키 `"quest_2073_state"`, 값 `"started"`/`"completed"`). ArgonMS의 `player.isQuestActive(id)`/
+    `startQuest(id)`/`isQuestCompleted(id)` 전부 이 방식으로 대응 가능 — 전용 API가 없을 뿐 구현
+    자체는 막히지 않음.
+- **인벤토리/아이템은 실제로 있음** (`Components/InventoryComponent` API Reference 확인):
+  - `InventoryComponent:GetItemList()` → `table<Item>`, `GetItemsWithType(itemType)`.
+  - `_ItemService:CreateItem(itemType, name, inventory)` — 아이템 생성+지급. `_ItemService:RemoveItem(item)` — 제거.
+  - `Item.ItemCount`(수량, 직접 대입 가능 — 스택형 아이템), `Item.ItemDataTableName`(아이템 정의 데이터 참조).
+  - 이벤트: `InventoryItemAddedEvent`/`InventoryItemModifiedEvent`/`InventoryItemRemovedEvent`/
+    `InventoryItemInitEvent`(유저 접속 시 인벤토리 로드 완료 — **인벤토리 자체는 엔진이 알아서 영속 저장**,
+    UserDataStorage처럼 직접 관리 안 해도 됨).
+  - ArgonMS의 `player.hasItem(id, count)`/`gainItem(id, count)`/`loseItem(id, count)`는
+    `GetItemList()`로 찾기 / `CreateItem`+`ItemCount` 설정 / `ItemCount` 감소 or `RemoveItem`으로 각각 대응 가능.
+  - **미확인**: `itemType`이 정확히 뭘 가리키는 값인지(예제엔 `TestItem`이라는 리터럴처럼 나옴 —
+    아이템을 미리 정의해두는 별도 자산/데이터 타입일 가능성, 추가 확인 필요).
+- **여전히 미확인**: 파티(party) 관련 API(인원수/리더 확인 등, `s4snipe.js` 류에서 필요), 레벨/직업 확인 API.
+
 ## 아직 미확인 (추가 조사 필요)
 
 - 힌트/툴팁 UI 컴포넌트 (advice*.js 포탈 5개, `portal.showHint`에 대응하는 것 — `ChatBalloonComponent` 응용
