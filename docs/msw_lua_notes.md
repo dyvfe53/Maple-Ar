@@ -32,9 +32,67 @@
 
 - 함수 앞에 `[server only]` / `[client only]` 어노테이션으로 실행 위치 구분 (ArgonMS의 game/login 서버 분리와는 다른 개념 — MSW는 한 프로젝트 안에서 서버·클라이언트 코드가 같이 있고 어노테이션으로만 나뉨).
 
+## NPC 대화창 — 공식 튜토리얼 확인 (postId=74 "NPC 대화창 만들기")
+
+MSW에는 ArgonMS의 `NpcScriptManager`(continuation) 같은 **전용 대화 시스템이 내장되어 있지 않음**.
+대신 크리에이터가 직접 "UI + 데이터 테이블 + 스크립트"로 구성하는 것이 공식 권장 패턴:
+
+1. **UI**: `UIGroup` 하위에 `TalkPanel`(배경 이미지) → 그 자식으로 `Portrait`(초상화 이미지), `Name`(이름 텍스트), `Text`(대사 텍스트) 엔티티 배치. 평소엔 `TalkPanel.Enable = false`.
+2. **데이터 테이블**: `_DataService` 자산으로 `NPCTalk`이라는 테이블 생성, 컬럼 `name / portrait / text`. 대사를 행(row) 단위로 순서대로 나열 (portrait는 이미지 리소스 RUID 문자열).
+3. **스크립트**: 컴포넌트 프로퍼티로 `count`(현재 읽는 행 번호), `npcTalkData`(테이블 참조), UI 엔티티 참조들을 보관.
+
+검증된 실제 코드 (원문 그대로):
+```
+[Client only] void OnBeginPlay() {
+  self.count = 1
+  self.npcTalkData = _DataService:GetTable("NPCTalk")
+  self.uiNameEntity = _EntityService:GetEntityByPath("/ui/UIGroup/TalkPanel/Name")
+  self.uiMessageEntity = _EntityService:GetEntityByPath("/ui/UIGroup/TalkPanel/Text")
+  self.uiTalkPanel = _EntityService:GetEntityByPath("/ui/UIGroup/TalkPanel")
+  self.uiPortraitEntity = _EntityService:GetEntityByPath("/ui/UIGroup/TalkPanel/Portrait")
+}
+
+-- Entity Event Handler: KeyDownEvent
+local key = event.key
+if key == KeyboardKey.Z then
+  self:ShowNextText()
+end
+
+void ShowNextText() {
+  local isNameEnable = false
+  local isPortraitEnable = false
+  local message = self.npcTalkData:GetCell(self.count, "text")
+  if message == nil then
+    self.uiTalkPanel.Enable = false
+    return
+  else
+    self.uiTalkPanel.Enable = true
+    self.uiMessageEntity.TextComponent.Text = message
+  end
+  local name = self.npcTalkData:GetCell(self.count, "name")
+  local portrait = self.npcTalkData:GetCell(self.count, "portrait")
+  if name ~= "" then
+    isNameEnable = true
+    self.uiNameEntity.TextComponent.Text = name
+  end
+  if portrait ~= "" then
+    isPortraitEnable = true
+    self.uiPortraitEntity.SpriteGUIRendererComponent.ImageRUID = portrait
+  end
+  self.uiNameEntity.Enable = isNameEnable
+  self.uiPortraitEntity.Enable = isPortraitEnable
+  self.count = self.count + 1
+}
+```
+
+**중요한 제약**: 이 공식 예제는 **선형(linear) 대사 진행**만 다룸 (키 입력마다 다음 줄로). ArgonMS NPC 스크립트들은
+`npc.askMenu()`/`askYesNo()`처럼 **분기형 대화**(선택지에 따라 다른 대사/퀘스트/상점으로 진행)가 많음 —
+이건 이 튜토리얼에 없는 내용이라, 선택지 UI(버튼 여러 개) + 분기 로직을 직접 얹어서 확장해야 함.
+NPC 스크립트를 변환할 때 "선형 대사"와 "분기(메뉴 선택)"를 구분해서, 분기가 있는 스크립트는 별도 설계가 필요하다는 걸 미리 인지하고 진행.
+
 ## 아직 미확인 (추가 조사 필요)
 
-- NPC 상호작용/대화창 관련 전용 컴포넌트·이벤트 (ArgonMS의 `NpcScriptManager`/대화 continuation에 대응하는 것) — 계속 조사 예정.
+- 분기형 대화(선택지 메뉴) 구현 패턴 — 공식 예제 없음, 직접 설계 필요.
 - 퀘스트 시스템 내장 여부/컴포넌트명.
 - 몬스터 스폰(`_SpawnService`로 추정), 전투/스탯 컴포넌트명.
 - 인벤토리/아이템 시스템 컴포넌트명.
@@ -43,6 +101,7 @@
 
 | ArgonMS | MSW |
 |---|---|
-| NPC 자바스크립트(Rhino, continuation) | NPC 엔티티 + 스크립트 컴포넌트, 이벤트 핸들러 기반 (continuation 없이 상태를 Property에 저장하는 방식으로 재설계 필요) |
+| NPC 자바스크립트(Rhino, continuation), 선형 대사 | UI(TalkPanel/Name/Text/Portrait) + `_DataService` 데이터 테이블(name/portrait/text 컬럼) + `count` 프로퍼티로 행 진행 |
+| NPC 자바스크립트, `askMenu()`/`askYesNo()` 분기 | 대응하는 공식 패턴 없음 — 선택지 버튼 UI + 분기 로직 직접 설계 필요 (아직 미해결) |
 | 서버 프로세스 분리(login/game/shop) | 없음 — MSW가 서버 인프라 전체를 대신 처리, `[server only]`/`[client only]`로만 구분 |
-| MySQL 테이블(캐릭터/인벤토리 등) | MSW 자체 데이터 서비스(추가 조사 필요) 또는 Property/Sync로 대체 |
+| MySQL 테이블(캐릭터/인벤토리 등) | `_DataService:GetTable()` / `GetCell()` 기반 데이터 테이블로 대체 가능 (정적 데이터에 한함) |
