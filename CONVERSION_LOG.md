@@ -892,3 +892,42 @@ go_pc.js 선례(CONVERSION_LOG.md #2)를 그대로 따름: **`selection == 0` �
   퀘스트 시스템 조사 후 처리 예정.
 
 **요약**: 27개 중 19개(2 스크립트없음 + 17 자유시장) 처리, 7개(힌트 5 + 퀘스트의존 2) 보류.
+
+---
+
+## #5. 퀘스트 스크립트 7개 — 6개 변환, 1개 스킵
+
+`argonms-server/scripts/quests/*.js`. 이 스크립트들은 (NPC 대화와 달리) `npc.startQuest()`/
+`npc.completeQuest()`, `player.gainExp/gainItem/loseItem/loseMesos/evolveBossPet` 같은 **게임플레이
+부수효과가 대사보다 중요한 비중을 차지**함. 사전조사에서 확인한 대로 MSW는 퀘스트 전용 시스템이 없으므로
+(`UserDataStorage`로 직접 구현) 및 인벤토리는 있음(`InventoryComponent`/`_ItemService`)을 전제로 변환.
+
+- **q1021s.js (Roger's Apple, Quest 1021, 시작)** → `Talk_1021_RogersApple_Start.csv` +
+  `Choice_1021_RogersApple_Start.csv`. `askAccept`(1=수락/0=거절 — askYesNo와 동일 관례로 추정, 라벨은
+  "Accept"/"Decline"으로 구분해 표기) 분기. 수락 시 행에 `[ACTION: ...]` 접두로 아이템 지급
+  (2010007 x1)+퀘스트 시작+HP 25 설정을 표시(원본에 있던 "인벤토리 꽉 차면 실패" 가드는 CSV에 넣지 않고
+  여기 기록만 함 — subway_get류와 같은 처리 방식).
+- **q1021e.js (Roger's Apple, 종료)** → `Talk_1021_RogersApple_End.csv` (순수 선형, 2행). 마지막 행에
+  `[ACTION: exp 10 지급, 아이템 2010000 x3 + 2010009 x3 지급, 퀘스트 완료 처리]` 표시.
+- **q2127e.js — 스킵**: `//TODO: GMS-like conversation` 뿐, 대사도 부수효과도 없음.
+- **q2186e.js (Help Me Find My Glasses, Quest 2186, 종료) — CSV 없음, 로그만**: 원본 자체가
+  `//TODO: GMS-like conversation` 뿐이라 대사 텍스트가 없음(ArgonMS 저장소에도 미작성 상태). 부수효과만
+  존재: exp 1700 지급, 아이템 2030019 x10 지급, 퀘스트 완료. 사람이 실제 대사를 새로 써야 하는 항목으로 표시.
+- **q4659e.js (Robo Upgrade!, Quest 4659, 종료)** → `Talk_4659_RoboUpgrade_End.csv` (1행, 아이템 부족
+  시 안내문만 — subway_get1.js와 동일 패턴). 성공 시(아이템 4000111 50개 보유) 부수효과: 펫 진화
+  (`player.evolveBossPet()`), 아이템 5380000 x1 및 4000111 x50 차감, 퀘스트 완료 — **대사 없이 진행**이라
+  CSV에는 실패 메시지만 있고 성공 부수효과는 로그 기록만.
+- **q8185e.js (Pet Evolution2, Quest 8185, 종료)**, **q8189e.js (Pet Re-Evolution, Quest 8189, 종료)** →
+  각각 `Talk_8185_PetEvolution2_End.csv`, `Talk_8189_PetReEvolution_End.csv` (원문까지 완전히 동일한
+  구조/메시지, 메소 10000 부족 시 안내문). 성공 시 부수효과: 펫 진화, 아이템 5380000 x1 차감, 메소 10000
+  차감, 퀘스트 완료.
+- **NPC 표시명 미확인 3건**: q4659e/q8185e/q8189e 전부 NPC 9102001인데, 이 저장소 내에서 실제 이름을
+  찾지 못해(다른 스크립트에서도 이 ID로 이름이 등장하지 않음) `NPC 9102001`을 임시 표시명으로 사용 —
+  **실제 이름 확인 후 교체 필요**.
+
+**새로 확인된 미해결 시스템(퀘스트 변환 중 발견, msw_lua_notes.md에도 기록)**:
+- **경험치/레벨 시스템**(`player.gainExp`) — MSW 대응 API 미확인.
+- **메소(화폐) 시스템**(`player.hasMesos`/`loseMesos`) — 아이템과 별개 화폐 개념이 MSW에 있는지 미확인
+  (재화 시스템 자체가 없다면 인벤토리 아이템처럼 취급해 자체 구현 필요할 수 있음).
+- **펫 진화 시스템**(`player.evolveBossPet`) — 메이플스토리 전용 기능이라 MSW에 대응 개념 자체가 없을
+  가능성 높음 — 있다면 완전히 커스텀으로 구현해야 함.

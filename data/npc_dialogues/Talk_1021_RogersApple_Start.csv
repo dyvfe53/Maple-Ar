@@ -1,0 +1,7 @@
+name,portrait,text,isChoice,nextRow
+Roger,,"Hey, Man~ What's up? Haha! I am Roger who can teach you adorable new Maplers lots of information.",false,2
+Roger,,"You are asking who made me do this? Ahahahaha! Myself! I wanted to do this and just be kind to you new travellers.",false,3
+Roger,,"So..... Let me just do this for fun! Abaracadabra~!",true,
+Roger,,"[ACTION: give item 2010007 x1, mark Quest 1021 started, set player HP to 25] Surprised? If HP becomes 0, then you are in trouble. Now, I will give you Roger's Apple. Please take it. You will feel stronger. Open the Item window and double click to consume. Hey, it's very simple to open the Item window. Just press I on your keyboard.",false,5
+Roger,,"Please take all Roger's Apples that I gave you. You will be able to see the HP bar increasing. Please talk to me again when you recover your HP 100%.",false,
+Roger,,"I can't believe you have just turned down an attractive guy like me!",false,
