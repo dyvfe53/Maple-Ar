@@ -142,18 +142,25 @@ ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)�
     ...
   }
   ```
-- **데이터 모델 확장**: 튜토리얼의 순차 증가(`count = count + 1`) 방식은 "다음 줄로만 진행"이라 분기(같은 메뉴로
-  되돌아가거나 특정 줄로 점프)를 표현 못 함. 그래서 행을 `count`(위치)가 아니라 고유 `id`로 식별하도록 확장:
-  - `Talk_<npcId>_<name>` 테이블: 컬럼 `id, name, portrait, text, isChoice` — `isChoice=true`인 행은 다음 줄로
-    자동 진행하지 않고 선택지를 띄움.
-  - `Choice_<npcId>_<name>` 테이블: 컬럼 `fromId, optionIndex, label, targetId` — `fromId`가 가리키는 대화 행에서
-    보여줄 선택지들. `targetId`가 빈 값이면 그 선택 시 대화 종료.
+- **`_DataService`/데이터 테이블 API 정확한 사실 확인** (postId 없음, API Reference `Services/DataService` 직접 확인):
+  `GetCell(name, row, col)` / `dataSet:GetCell(row, col)`, `GetRowCount(name)` / `dataSet:GetRowCount()`, `GetTable(name)`
+  뿐이며, **"컬럼 값으로 행을 검색"하는 내장 함수는 없음** — row는 항상 1부터 시작하는 정수 위치로만 접근 가능.
+  → 애초에 계획했던 "임의의 `id` 컬럼 값으로 검색" 설계는 불가능하거나 직접 순회(`for i=1,GetRowCount() do ... end`)가
+  필요했는데, **더 간단한 방법이 있음**: 행 번호 자체를 id로 취급하면 됨. 즉 "3번 줄로 점프"는 그냥 `GetCell(3, ...)`.
+  별도 `id` 컬럼도, 검색 로직도 필요 없음 — 아래 설계는 이 방식으로 단순화함.
+- **데이터 모델**: 튜토리얼의 `count = count + 1`(항상 다음 줄)을 "`count`를 임의의 행 번호로 바꿔치기 가능"하게만
+  확장. 컬럼 자체는 튜토리얼과 동일(`name, portrait, text`)에 `isChoice`만 추가:
+  - `Talk_<npcId>_<name>` 테이블: 컬럼 `name, portrait, text, isChoice, nextRow` — `isChoice=true`면 다음 줄로
+    자동 진행하지 않고 선택지를 띄움. `isChoice=false`면 상호작용 시 `nextRow`(행 번호, 빈 값=대화 종료)로 이동.
+  - `Choice_<npcId>_<name>` 테이블: 컬럼 `fromRow, optionIndex, label, targetRow` — `fromRow` 행에서 보여줄
+    선택지들. `targetRow`가 빈 값이면 그 선택 시 대화 종료.
 - **스크립트 설계** (`NpcBranchTalk.lua`, 아직 미검증):
-  - `currentId` 프로퍼티로 현재 표시 중인 행을 추적 (튜토리얼의 `count` 대신).
+  - `count` 프로퍼티(튜토리얼과 동일한 이름/역할)로 현재 행 번호를 추적하되, 분기 시 임의의 행 번호를 대입 가능.
   - 행을 보여줄 때 `isChoice`가 true면: 공용 `OptionsPanel`(고정 슬롯 최대 N개, 예: 6개의 미리 만들어둔 버튼+텍스트
-    엔티티) 활성화, `Choice` 테이블에서 `fromId`로 필터링한 옵션들의 `label`을 각 버튼에 채움.
-  - 각 버튼의 `ButtonClickEvent` 핸들러에서: 그 옵션의 `targetId`를 읽어 `currentId`에 설정하고 다시 표시(재귀 호출) —
-    `targetId`가 비어있으면 대화 종료(원본 `npc.say()`로 끝나는 것과 대응).
+    엔티티) 활성화. `Choice` 테이블 전체를 `GetRowCount()`만큼 순회하며 `fromRow == count`인 행만 골라 각 버튼에
+    `label`을 채움 (여기서만 순회가 필요 — Choice 테이블은 보통 작아서 성능 문제 없음).
+  - 각 버튼의 `ButtonClickEvent` 핸들러에서: 그 옵션의 `targetRow`를 읽어 `count`에 대입하고 다시 표시(재귀 호출) —
+    `targetRow`가 비어있으면 대화 종료(원본 `npc.say()`로 끝나는 것과 대응).
   - **한계**: 고정 슬롯 방식이라 선택지가 슬롯 수(예: 6개)를 넘는 NPC(예: `About_NLC.js`의 11개 선택지 FAQ 메뉴)는
     슬롯 수를 늘리거나 스크롤형 UI(`ScrollLayoutGroupComponent` 확인됨, 상세 미조사)로 별도 설계 필요.
   - **한계 2**: ArgonMS 분기 중 `player.getLevel()`, `player.startQuest()`, `player.isQuestCompleted()`처럼 플레이어
