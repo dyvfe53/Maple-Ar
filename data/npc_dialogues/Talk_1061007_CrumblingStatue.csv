@@ -1,0 +1,3 @@
+name,portrait,text,isChoice,nextRow
+Crumbling Statue,,"It's a Crumbling Statue.",false,2
+Crumbling Statue,,"Would you like to leave this place?",true,

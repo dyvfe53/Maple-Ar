@@ -1,0 +1,4 @@
+name,portrait,text,isChoice,nextRow
+Thomas Swift,,"I can take you back to your original location. Are you ready to go?",true,
+Thomas Swift,,"I hope you had a great time! See you around!",false,
+Thomas Swift,,"Ok, feel free to hang around until you're ready to go!",false,

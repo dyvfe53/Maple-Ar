@@ -189,8 +189,36 @@ ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)�
   여부, 아이템 소지, 파티 상태)을 MSW에서 읽는 API가 전부 미확인 상태라 — 퀘스트/인벤토리/파티 시스템
   조사가 선행되어야 실제 설계가 가능함.
 
+## 포탈(Portal) — PortalComponent 확인 (task #6 사전조사)
+
+- `PortalComponent`: 충돌 영역 + `PortalEntityRef`(목적지 포탈 엔티티 참조)로 구성. **디자인타임에 두 포탈을
+  서로 연결해두면 스크립트 없이 자동으로 워프됨** — ArgonMS의 "스크립트 없는(scriptless) 포탈"과 정확히 대응.
+  `PortalUseEvent`(플레이어가 포탈 사용 시 발생)로 스크립트 개입 가능.
+- ArgonMS 포탈 스크립트 27개를 실제로 분류해보니:
+  - **2개(enter_nautil.js, ninjaAmbush.js)**: 조건 없는 단순 워프 — **Lua 코드 자체가 필요 없음**, MSW
+    에디터에서 포탈 두 개를 배치하고 `PortalEntityRef`로 연결하면 끝.
+  - **5개(advice00/04/06/07/08.js)**: `portal.showHint(...)` + `portal.abortWarp()` — 워프 없이 툴팁만
+    보여주는 튜토리얼 힌트. MSW의 대응 UI(토스트/힌트 컴포넌트)를 아직 특정 못함 — 추가 조사 필요.
+  - **17개(market00~17.js)**: 자유시장(Free Market) 출입 포탈 — 입장 전 위치를 기억했다가 퇴장 시 그 자리로
+    돌려보내는 패턴(`resetRememberedMap`). **`_DataStorageService:GetUserDataStorage(userId)`로 구현
+    가능해 보임** (아래 참고) — 이 17개는 사실상 동일한 로직 + 각자 다른 fallback 목적지만 다름.
+  - **2개(q2073.js, party1.js)**: 퀘스트/이벤트 인스턴스 상태로 통과 여부 결정 — task #5/#10과 동일한
+    퀘스트 시스템 의존성에 걸림.
+
+## 영구 데이터 저장 — DataStorageService 확인
+
+- `_DataStorageService:GetUserDataStorage(userId)` → `UserDataStorage` 객체 반환. 이름 패턴상
+  `GlobalDataStorage`/`UserDataStorage`/`SortableDataStorage`/`CreatorDataStorage` 4종이 있고, 전부
+  `Get.../Set...`류 메서드를 갖는 것으로 보임 (공식 예제는 `GetGlobalDataStorage`만 보여줌 — `UserDataStorage`
+  자체의 Get/Set 메서드 시그니처는 아직 못 봄, 다음 조사 때 `Misc/UserDataStorage` 페이지 확인 필요).
+- 이게 확인되면 market*.js 포탈의 "돌아갈 위치 기억" 로직(퇴장 시 원래 있던 맵으로 복귀)을 유저별 영구
+  데이터로 구현 가능 — ArgonMS의 `player.getMap()`을 세션 DB에 저장하는 방식과 개념적으로 동일.
+
 ## 아직 미확인 (추가 조사 필요)
 
+- `UserDataStorage`의 실제 Get/Set 메서드 시그니처 (market*.js 포탈 변환 전 확인 필요).
+- 힌트/툴팁 UI 컴포넌트 (advice*.js 포탈 5개, `portal.showHint`에 대응하는 것 — `ChatBalloonComponent` 응용
+  가능성 있음, 미확인).
 - `ScrollLayoutGroupComponent`(선택지 많은 메뉴에 필요할 수 있음) 상세.
 - 퀘스트 시스템 내장 여부/컴포넌트명.
 - 몬스터 스폰(`_SpawnService`로 추정), 전투/스탯 컴포넌트명.
