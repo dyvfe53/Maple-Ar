@@ -260,6 +260,17 @@ ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)�
   - **메소(화폐) 시스템** (`player.hasMesos`/`loseMesos`) — 아이템과 별개의 화폐 개념이 있는지 미확인.
   - **펫 진화 등 메이플스토리 전용 게임플레이 기능** (`player.evolveBossPet`) — MSW에 대응 개념이 아예
     없을 가능성이 높음(범용 UGC 플랫폼이라 이런 IP 특화 기능은 있을 이유가 없음) — 있다면 완전 커스텀 구현 필요.
+- **리액터 스크립트 변환(task #7) 중 추가로 발견한 것**:
+  - `HitComponent`/`HitEvent` 확인 완료 — 몬스터/리액터처럼 "공격받는 오브젝트"의 표준 패턴.
+  - `RoomSharedMemory`(Misc) 확인 완료 — `GetVariableAndWait(name)`/`SetVariableAndWait(name, value)`로
+    ArgonMS의 파티퀘스트 이벤트 공유변수(`event.getVariable/setVariable`)와 정확히 대응.
+    **단, 이 `RoomSharedMemory` 인스턴스 자체를 얻는 방법(아마 `_RoomService` 경유로 추정)은 미확인.**
+  - `_SpawnService:SpawnByModelId(modelId, name, position, parent)` 확인 완료 — 몬스터 스폰 등에 사용 가능
+    (`map.spawnMob(...)` 대응).
+  - **월드 드랍(바닥에 아이템이 떨어지고 걸어가서 줍는 연출) 전용 시스템 유무 미확인** — 지금까지는
+    `_ItemService:CreateItem`으로 인벤토리에 즉시 지급하는 단순화된 방식만 사용함.
+  - **ArgonMS 숫자 아이템 ID → MSW `itemType` 자산 매핑 방법 미확인** (`_ItemService:CreateItem`의 첫
+    인자가 정확히 어떤 값을 받는지 — 공식 예제는 `TestItem`이라는 리터럴 자산 참조로 보임).
 
 ## 아직 미확인 (추가 조사 필요)
 

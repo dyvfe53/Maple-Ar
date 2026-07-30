@@ -931,3 +931,33 @@ go_pc.js 선례(CONVERSION_LOG.md #2)를 그대로 따름: **`selection == 0` �
   (재화 시스템 자체가 없다면 인벤토리 아이템처럼 취급해 자체 구현 필요할 수 있음).
 - **펫 진화 시스템**(`player.evolveBossPet`) — 메이플스토리 전용 기능이라 MSW에 대응 개념 자체가 없을
   가능성 높음 — 있다면 완전히 커스텀으로 구현해야 함.
+
+---
+
+## #7. 리액터 스크립트 3개 — 2개 변환, 1개 설계만(미구현)
+
+`argonms-server/scripts/reactors/*.js`. 리액터는 "피격당하면 반응하는 맵 오브젝트"라 `HitComponent`/
+`HitEvent`(API Reference 확인 — 몬스터 예제와 동일한 패턴, HP도 직접 Property로 관리)로 대응.
+
+- **mBoxItem0.js (Reactor 2000, 고물상자)**, **moonItem0.js (Reactor 9102002~9102007, "nut")** →
+  공용 컴포넌트 `scripts/components/ReactorItemDrop.lua` + 각각의 드랍 테이블
+  `data/reactors/Drop_2000_ScrapBox.csv`(아이템 2종, 동일 가중치), `data/reactors/Drop_9102002_Nut.csv`
+  (아이템 6종, 동일 가중치)로 변환.
+  - `triggerChance` 프로퍼티로 "아예 안 뜰 확률" 표현 — mBoxItem0.js는 무조건 발동(1.0), moonItem0.js는
+    원본의 `Math.floor(Math.random()*2)==1`(50% 확률)를 그대로 반영해 0.5로 설정.
+  - **아이템 지급 방식 단순화**: 메이플스토리 특유의 "바닥에 아이템이 떨어지고 걸어가서 주워야 하는" 연출은
+    재현하지 않고 `_ItemService:CreateItem(...)`으로 공격한 플레이어 인벤토리에 바로 지급하도록 단순화함.
+    MSW에 "월드 드랍(바닥 아이템 줍기)" 전용 시스템이 있는지는 조사하지 못함 — 있다면 이쪽으로 교체 권장.
+  - **미확인**: ArgonMS 숫자 아이템 ID(예: 4031161)를 MSW의 실제 `itemType` 자산에 매핑하는 방법
+    (`_ItemService:CreateItem`의 첫 인자가 정확히 뭘 받는지 — 공식 예제엔 `TestItem`이라는 리터럴 자산
+    참조처럼 나와 있어 별도 아이템 정의 자산이 필요해 보임).
+- **moonflower.js (Reactor 9108000~9108005, 헤네시스 파티퀘스트 "달맞이꽃") — 미구현, 설계 방향만 기록**:
+  원본은 `reactor.getEvent("moonrabbit")`로 파티퀘스트 공유 이벤트 객체를 얻어 `flowers`라는 공유 카운터를
+  1 증가시키고, 6이 되면 몬스터(달토끼)를 스폰함. MSW의 `RoomSharedMemory`(API Reference 확인)가
+  `GetVariableAndWait(name)`/`SetVariableAndWait(name, value)`를 제공해 이 "여러 리액터가 공유하는 카운터"
+  개념과 정확히 대응되고, 몬스터 스폰은 `_SpawnService:SpawnByModelId(modelId, name, position, parent)`
+  (API Reference 확인)로 가능해 보임. **다만 `RoomSharedMemory` 인스턴스 자체를 얻는 방법(아마 `_RoomService`
+  경유로 추정)을 아직 확인 못 해서 완전한 구현은 보류** — 다음 조사 항목으로 `docs/msw_lua_notes.md`에 추가.
+
+**요약**: 3개 중 2개(고물상자, nut) 변환 완료, 1개(달맞이꽃, 파티퀘스트 공유상태+몬스터스폰)는 핵심 API
+2/3까지 확인했으나 `RoomSharedMemory` 획득 방법 미확인으로 보류.
