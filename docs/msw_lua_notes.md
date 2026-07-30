@@ -90,12 +90,51 @@ void ShowNextText() {
 이건 이 튜토리얼에 없는 내용이라, 선택지 UI(버튼 여러 개) + 분기 로직을 직접 얹어서 확장해야 함.
 NPC 스크립트를 변환할 때 "선형 대사"와 "분기(메뉴 선택)"를 구분해서, 분기가 있는 스크립트는 별도 설계가 필요하다는 걸 미리 인지하고 진행.
 
+## 상호작용 — InteractionComponent (API Reference 확인, NPC 대화 트리거로 확정)
+
+정확히 "플레이어가 NPC에게 다가가 상호작용"하는 용도의 **내장 컴포넌트**가 있음. `TriggerComponent`(범용 충돌 감지)보다
+이쪽이 NPC 상호작용의 정답.
+
+- **Properties**: `ActionKey`(KeyboardKey, 상호작용 키), `ActionName`(string, 말풍선에 뜨는 문구 예: "대화하기"),
+  `ShowActionInfo`(bool, true면 플레이어가 접근했을 때 ActionName+ActionKey를 말풍선으로 자동 표시 — 이때 `ChatBalloonComponent`가
+  플레이 중 자동으로 붙음), `InteractionType`(Enum `InteractType`, 키 입력 방식 — 탭/누르고 있기 등), `HoldingDuration`(초 단위,
+  누르고 있어야 하는 시간, `KeyHoldingDuration`/`KeyUpAfterHoldingDuration` 타입일 때), Box/Circle/Polygon 콜라이더 설정(범위).
+- **Events**: `InteractionEnterEvent`(범위 진입), `InteractionEvent`(**실제 상호작용 키를 눌렀을 때 발생 — 이게 "대화 시작" 트리거**),
+  `InteractionLeaveEvent`(범위 이탈). (`OnEnter/OnInteraction/OnLeave` 메서드 오버라이드 방식은 deprecated, 이벤트 방식 사용 권장)
+- 공식 예제(원문 그대로, 상호작용 시 플레이어 이동속도 변경):
+  ```
+  Event Handler: [self] HandleInteractionEnterEvent(InteractionEnterEvent event) {
+    local InteractionEntity = event.InteractionEntity
+    if self:IsClient() then return end
+    local effectRoot = _EntityService:GetEntityByPath(EntityPath)
+    effectRoot.Enable = true
+  }
+  [self] HandleInteractionLeaveEvent(InteractionLeaveEvent event) {
+    local InteractionEntity = event.InteractionEntity
+    if self:IsClient() then return end
+    local effectRoot = _EntityService:GetEntityByPath(EntityPath)
+    effectRoot.Enable = false
+  }
+  [self] HandleInteractionEvent(InteractionEvent event) {
+    local InteractionEntity = event.InteractionEntity
+    if self:IsServer() then return end
+    InteractionEntity.MovementComponent.InputSpeed = 3
+  }
+  ```
+  `event.InteractionEntity` = 상호작용을 건 플레이어 엔티티. `Event Handler:` 선언에 `[self]`만 있고 `[server only]`/`[client only]`가
+  없는 경우, 핸들러 내부에서 `self:IsClient()`/`self:IsServer()`로 직접 분기하는 것도 확인됨 (두 방식 다 가능한 것으로 보임).
+
+**NPC 대화 트리거 확정 설계**: NPC 엔티티에 `InteractionComponent` 부착 (`ActionKey`=Z, `ActionName`="대화하기", `ShowActionInfo`=true)
+→ `InteractionEvent` 핸들러에서 클라이언트 쪽에 한해 `self:ShowNextText()` 호출. NPCTalk 튜토리얼(postId=74)의 전역 `KeyDownEvent`
+방식보다 이쪽이 NPC별로 정확히 동작하는 올바른 방식이며, 두 공식 문서(NPCTalk 튜토리얼 + InteractionComponent 레퍼런스)를
+그대로 결합한 것이라 신뢰도 높음.
+
 ## 아직 미확인 (추가 조사 필요)
 
 - 분기형 대화(선택지 메뉴) 구현 패턴 — 공식 예제 없음, 직접 설계 필요.
 - 퀘스트 시스템 내장 여부/컴포넌트명.
 - 몬스터 스폰(`_SpawnService`로 추정), 전투/스탯 컴포넌트명.
-- 인벤토리/아이템 시스템 컴포넌트명.
+- 인벤토리/아이템 시스템 컴포넌트명(`InventoryComponent` 존재 확인, 상세 미확인).
 
 ## ArgonMS ↔ MSW 개념 매핑 (잠정)
 
