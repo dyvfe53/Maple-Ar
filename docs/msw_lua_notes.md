@@ -129,9 +129,40 @@ NPC 스크립트를 변환할 때 "선형 대사"와 "분기(메뉴 선택)"를 
 방식보다 이쪽이 NPC별로 정확히 동작하는 올바른 방식이며, 두 공식 문서(NPCTalk 튜토리얼 + InteractionComponent 레퍼런스)를
 그대로 결합한 것이라 신뢰도 높음.
 
+## 분기형 대화(선택지 메뉴) — 직접 설계 (공식 예제 없음, ButtonComponent 검증 조각으로 조립)
+
+ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)를 씀 — 다수파. 공식 튜토리얼은 선형 진행만
+다루므로, 검증된 `ButtonComponent`(Properties/Events)를 이용해 직접 설계함. **이 섹션 전체는 미검증 설계**이며,
+개별 조각(ButtonClickEvent 문법, DataService:GetTable/GetCell)만 검증됨.
+
+- `ButtonComponent`의 `ButtonClickEvent` 확인된 문법:
+  ```
+  Event Handler: [self] HandleButtonClickEvent(ButtonClickEvent event) {
+    local Entity = event.Entity
+    ...
+  }
+  ```
+- **데이터 모델 확장**: 튜토리얼의 순차 증가(`count = count + 1`) 방식은 "다음 줄로만 진행"이라 분기(같은 메뉴로
+  되돌아가거나 특정 줄로 점프)를 표현 못 함. 그래서 행을 `count`(위치)가 아니라 고유 `id`로 식별하도록 확장:
+  - `Talk_<npcId>_<name>` 테이블: 컬럼 `id, name, portrait, text, isChoice` — `isChoice=true`인 행은 다음 줄로
+    자동 진행하지 않고 선택지를 띄움.
+  - `Choice_<npcId>_<name>` 테이블: 컬럼 `fromId, optionIndex, label, targetId` — `fromId`가 가리키는 대화 행에서
+    보여줄 선택지들. `targetId`가 빈 값이면 그 선택 시 대화 종료.
+- **스크립트 설계** (`NpcBranchTalk.lua`, 아직 미검증):
+  - `currentId` 프로퍼티로 현재 표시 중인 행을 추적 (튜토리얼의 `count` 대신).
+  - 행을 보여줄 때 `isChoice`가 true면: 공용 `OptionsPanel`(고정 슬롯 최대 N개, 예: 6개의 미리 만들어둔 버튼+텍스트
+    엔티티) 활성화, `Choice` 테이블에서 `fromId`로 필터링한 옵션들의 `label`을 각 버튼에 채움.
+  - 각 버튼의 `ButtonClickEvent` 핸들러에서: 그 옵션의 `targetId`를 읽어 `currentId`에 설정하고 다시 표시(재귀 호출) —
+    `targetId`가 비어있으면 대화 종료(원본 `npc.say()`로 끝나는 것과 대응).
+  - **한계**: 고정 슬롯 방식이라 선택지가 슬롯 수(예: 6개)를 넘는 NPC(예: `About_NLC.js`의 11개 선택지 FAQ 메뉴)는
+    슬롯 수를 늘리거나 스크롤형 UI(`ScrollLayoutGroupComponent` 확인됨, 상세 미조사)로 별도 설계 필요.
+  - **한계 2**: ArgonMS 분기 중 `player.getLevel()`, `player.startQuest()`, `player.isQuestCompleted()`처럼 플레이어
+    상태/퀘스트를 참조하는 조건문은, MSW의 퀘스트/레벨 시스템이 아직 미확인이라 이 설계에 포함 안 됨 — 일단
+    `action` 같은 확장 컬럼에 원본 조건을 텍스트로 남겨두고, 퀘스트 시스템 조사 후(Task) 재작업 예정.
+
 ## 아직 미확인 (추가 조사 필요)
 
-- 분기형 대화(선택지 메뉴) 구현 패턴 — 공식 예제 없음, 직접 설계 필요.
+- `ScrollLayoutGroupComponent`(선택지 많은 메뉴에 필요할 수 있음) 상세.
 - 퀘스트 시스템 내장 여부/컴포넌트명.
 - 몬스터 스폰(`_SpawnService`로 추정), 전투/스탯 컴포넌트명.
 - 인벤토리/아이템 시스템 컴포넌트명(`InventoryComponent` 존재 확인, 상세 미확인).
@@ -141,6 +172,6 @@ NPC 스크립트를 변환할 때 "선형 대사"와 "분기(메뉴 선택)"를 
 | ArgonMS | MSW |
 |---|---|
 | NPC 자바스크립트(Rhino, continuation), 선형 대사 | UI(TalkPanel/Name/Text/Portrait) + `_DataService` 데이터 테이블(name/portrait/text 컬럼) + `count` 프로퍼티로 행 진행 |
-| NPC 자바스크립트, `askMenu()`/`askYesNo()` 분기 | 대응하는 공식 패턴 없음 — 선택지 버튼 UI + 분기 로직 직접 설계 필요 (아직 미해결) |
+| NPC 자바스크립트, `askMenu()`/`askYesNo()` 분기 | `ButtonComponent`(ButtonClickEvent) + id 기반 `Talk_`/`Choice_` 데이터 테이블 2종 조합 (직접 설계, 미검증) |
 | 서버 프로세스 분리(login/game/shop) | 없음 — MSW가 서버 인프라 전체를 대신 처리, `[server only]`/`[client only]`로만 구분 |
 | MySQL 테이블(캐릭터/인벤토리 등) | `_DataService:GetTable()` / `GetCell()` 기반 데이터 테이블로 대체 가능 (정적 데이터에 한함) |
