@@ -1,0 +1,4 @@
+name,portrait,text,isChoice,nextRow
+[NPC name],,"Will you transform your other self's appearance to your current state? You may transform your other self once a day.",true,
+[NPC name],,"It's okay to take your time. Let me know when you are ready.",false,
+[NPC name],,"Your other self has been transformed to resemble your current state. The transformation is available only once a day.",false,

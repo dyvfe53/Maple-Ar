@@ -1,0 +1,2 @@
+name,portrait,text,isChoice,nextRow
+[NPC name],,"Hello, I am [NPC name], and I am LEVEL [NPC level].",false,

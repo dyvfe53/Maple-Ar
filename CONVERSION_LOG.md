@@ -39,11 +39,17 @@
   - `data/npc_dialogues/1052012_MongFromKong_Talk.csv`
   - `data/npc_dialogues/1052012_MongFromKong_Choice.csv`
 - **선택 이유**: `askYesNo` 하나만 쓰는 가장 단순한 분기(2지선다) — 분기형 대화의 첫 사례로 적합.
-- **원문의 `askYesNo` 반환값 해석에 대한 불확실성**: ArgonMS Java 소스(`ScriptNpc.askYesNo`)를 확인했지만
-  0/1이 Yes/No 중 무엇인지 코드 자체에서는 확정할 수 없었음. 다른 MapleStory 서버 에뮬레이터들의
-  통상적 관례(0=Yes, 1=No, 클라이언트 버튼 순서 기준)를 따라 `targetRow`를 매핑함 (Choice CSV의
-  `optionIndex=0`→"Yes"→2행, `optionIndex=1`→"No"→3행). **이 관례가 실제로 맞는지 확인 안 됨** —
-  틀렸다면 두 응답이 서로 바뀌는 정도의 문제이므로 나중에 쉽게 고칠 수 있음.
+- **원문의 `askYesNo` 반환값 해석에 대한 불확실성 → 나중에 정정됨**: 처음엔 ArgonMS Java 소스만으로는
+  0/1이 Yes/No 중 무엇인지 확정할 수 없어서, 다른 MapleStory 서버 에뮬레이터들의 통상적 관례
+  (0=Yes, 1=No)를 가정해 `optionIndex=0`→"Yes", `optionIndex=1`→"No"로 라벨을 붙였었음.
+  **이후(분기형 배치 A 변환 도중) `herb_out.js`/`friend00.js` 등 여러 파일의 스크립트 로직을 직접
+  대조해보니 실제로는 정반대(`selection==1`이 "예", `selection==0`(else)이 "아니오")임이 명확히
+  확인됨** — 예: `friend00.js`는 `if (selection==1)`일 때 "좋아요, 하겠습니다" 흐름으로 이어지고
+  `else`(0)일 때 거절 대사가 나옴. `herb_out.js`는 `askYesNo(...) == 1`일 때만 실제로 맵 이동(수락)이
+  일어남. 이 저장소의 모든 Choice CSV에서 `optionIndex=0`↔`optionIndex=1`의 **라벨(Yes/No)을
+  스왑**하여 정정함 (targetRow는 원래도 코드의 `if(selection==1)/else` 분기를 그대로 반영해 정확했으므로
+  건드리지 않음 — 라벨만 틀려 있었음). 영향받은 파일: 이 파일(Mong from Kong)과 분기형 배치 A의
+  askYesNo 12건 전부.
 - **설계 도중 발견/수정한 오류**:
   1. 처음에는 "선택지 행을 임의의 `id`로 검색"하는 설계였는데, `_DataService` API Reference를 확인해보니
      `GetCell(row, col)`은 행 **번호**로만 접근 가능하고 값으로 검색하는 함수가 없음을 확인.
@@ -485,3 +491,371 @@ if/else·switch 분기(퀘스트 상태 기반)를 포함해 순수 선형이 �
 - 스킵(대사 없음): 5개 (s4mind_in.js, tcg4_7.js, tcg4_8.js, wxmasA.js, wxmasB.js) — 전부
   `//TODO: GMS-like conversation` 주석만 있고 실제 say/sayNext 대사가 0줄.
 - 태그(`#p`/`#h`/`#t`/`#m`/`#b`/`#k` 등) 관련 수동 확인 필요 항목: 없음.
+
+---
+
+## #4~. 분기형 대화 배치 A (askMenu/askYesNo, 순수 메뉴형 21개 중 11개)
+
+**중요 정정**: 아래 로그의 'askYesNo 0/1 매핑 공통 가정' 절은 서브에이전트가 go_pc.js 선례를 따라
+0=Yes/1=No로 가정한 원본 기록이나, 이는 틀렸음이 이후 확인됨 (herb_out.js/friend00.js 등에서
+selection==1이 명백히 '예' branch). **실제로는 1=Yes, 0=No이며, 아래 로그에 나열된 모든 Choice CSV의
+Yes/No 라벨은 코디네이터가 이미 스왑하여 정정 완료함** (targetRow는 원래도 정확했으므로 유지).
+이 로그 본문은 변환 당시의 원래 판단 근거(구조 파악, STATE-DEPENDENT 탐지 등)를 보존하기 위해
+그대로 남기되, Yes/No 매핑 부분만 위와 같이 정정되었다는 점을 참고할 것.
+
+
+11개 파일 전부 변환함(스킵 없음). 패턴: `docs/msw_lua_notes.md`의 "분기형 대화(선택지 메뉴)" 설계,
+`CONVERSION_LOG.md` #2 Mong from Kong(go_pc.js) 사례와 동일. 컴포넌트는 기존
+`scripts/components/NpcBranchTalk.lua` / `NpcOptionButton.lua` 재사용(신규 작성 없음).
+
+## askYesNo 0/1 매핑 공통 가정 (전 파일 동일 적용)
+
+go_pc.js 선례(CONVERSION_LOG.md #2)를 그대로 따름: **`selection == 0` → optionIndex0/"Yes",
+`selection == 1` → optionIndex1/"No"**. ArgonMS 소스만으로는 실제 클라이언트 버튼 순서를 확정할 수
+없어 다른 서버 에뮬레이터 관례를 차용한 가정이며, **미검증**. 이 배치의 모든 Choice CSV가 이 규칙을
+기계적으로 일관되게 적용함 — 일부 파일(herb_out.js, out_tree.js 등)은 이 매핑이 대사 내용과 직관적으로
+안 맞아 보일 수 있으나(예: "Yes"가 questionable 쪽에 매핑되는 것처럼 보임), go_pc.js 사례와의 일관성을
+우선함. 틀렸다면 각 Choice CSV의 optionIndex 0/1 레이블만 맞바꾸면 되는 정도의 문제.
+
+---
+
+## herb_out.js — Louis (NPC 1032004)
+
+- **결과**: `Talk_1032004_Louis.csv`, `Choice_1032004_Louis.csv`
+- 구조: `askYesNo` 1개, 양쪽 다 후속 대사 없음. `selection==1`일 때만 `player.changeMap(101000000)`
+  (순수 부수효과, 대사 없음) — targetRow 비움, 부수효과는 여기 기록만 하고 구현 안 함(TeleportService 미검증).
+  `selection==0`(암묵적)은 아무 동작 없음(대화 종료).
+- 태그/색상코드 없음. STATE-DEPENDENT 없음.
+
+## begin_jp3.js — Heena (NPC 2101)
+
+- **결과**: `Talk_2101_Heena.csv`, `Choice_2101_Heena.csv`
+- 구조: `askYesNo` 1개, 양쪽 다 후속 대사 1줄씩(3행 구성). `result==1`→"Then, I will send you out..."(row2,
+  부수효과 `player.changeMap(3)` 동반, 기록만 함) / else→"Haven't you finish..."(row3).
+- 태그/색상코드 없음.
+
+## flower_out.js — Crumbling Statue (NPC 1061007)
+
+- **결과**: `Talk_1061007_CrumblingStatue.csv`, `Choice_1061007_CrumblingStatue.csv`
+- 구조: 고정 인사말(`sayNext`, row1) → `askYesNo`(row2). `selection==1`이면 `player.changeMap(105040300)`
+  부수효과만(대사 없음, targetRow 비움). `selection==0`은 아무 동작 없음.
+- 태그/색상코드 없음.
+
+## subway_out.js — Exit (NPC 1052011)
+
+- **결과**: `Talk_1052011_Exit.csv`, `Choice_1052011_Exit.csv`
+- 구조: `askYesNo` 1개, 양쪽 다 후속 대사 없음. `selection==1`→`player.changeMap(103000100)` 부수효과만.
+- 태그/색상코드 없음.
+
+## florina1.js — Pison: Tour Guide (NPC 1081001)
+
+- **결과**: `Talk_1081001_Pison.csv`, `Choice_1081001_Pison.csv`
+- **가장 복잡한 사례** — 몇 가지 특이사항:
+  1. `npc.askMenu(...)`가 호출되지만 **반환값이 전혀 검사되지 않음**(원본 코드가 `let selection =`으로
+     받지 않고 바로 버림) — 메뉴 자체가 옵션 1개짜리(`#L0#`)뿐이라 사실상 "확인" 버튼 역할. 선택 후
+     코드는 무조건 다음 `askYesNo`로 진행하므로, `targetRow`를 다음 질문(row2)으로 연결해 그대로 반영함.
+  2. `returnMap`/`spawnPoint`는 `npc.getRememberedMap("FLORINA")`가 반환하는 **런타임 동적 값**이라
+     `#m<id>#` 같은 정적 태그 치환이 불가능함. `[Map <dynamic:returnMap>]`이라는 플레이스홀더로 표시함
+     (일반 `#m<id>#` 정적 치환과 다른 종류의 미해결 항목 — MSW 쪽에서 "기억된 맵" 개념을 별도 프로퍼티로
+     구현한 뒤 텍스트 바인딩 필요).
+  3. `#m110000000#`(정적) → `[Map 110000000]`로 치환.
+  4. `#b`/`#k` 색상 코드 제거. `#L0#` 뒤 텍스트("I would like to go back now.")는 Choice의 label로 분리.
+  5. `selection==1`(row2 askYesNo) → `player.changeMap(returnMap, spawnPoint)` + `npc.resetRememberedMap(...)`
+     부수효과만(대사 없음, targetRow 비움). `selection==0` → row3(고정 텍스트, 대화 종료).
+- **후속 확인 필요**: `[Map <dynamic:returnMap>]` 플레이스홀더 3곳(row1 1개, row2 2개) — 사람이 MSW의
+  "기억된 맵" 저장/조회 방식을 설계한 뒤 실제 텍스트 바인딩으로 교체해야 함.
+
+## friend00.js — Mr. Goldstein: Buddy List Admin (NPC 1002003)
+
+- **결과**: `Talk_1002003_MrGoldstein.csv`, `Choice_1002003_MrGoldstein.csv`
+- **STATE-DEPENDENT placeholder 1건 발생** — 지시문의 우려 사례와 정확히 일치하는 패턴 발견:
+  중첩 구조 `askYesNo(Q1) → [Yes] askYesNo(Q2) → [Yes] if(player.hasMesos(250000) && player.getBuddyCapacity() < 50) {...} else {...}`.
+  Q1/Q2는 정상적인 메뉴 분기(row1, row3)로 변환했으나, Q2에서 "No"(관례상 `selection==1`) 선택 시의
+  결과가 다시 플레이어 상태(소지금/버디 목록 용량)에 따라 갈리므로, 이 지점(row5)은 규칙대로
+  실제 조건을 모델링하지 않고 플레이스홀더로 남김:
+  `"[STATE-DEPENDENT: checks player.hasMesos(250000) && player.getBuddyCapacity() < 50 -- ...]"`.
+- 5행 구성: row1(Q1, choice) / row2(outer No 결과, leaf) / row3(Q2, choice) / row4(Q2 Yes 결과, leaf,
+  대사만 있고 부수효과 없음) / row5(Q2 No 결과, STATE-DEPENDENT placeholder).
+- `#b...#k` 색상 코드 제거(원문 "250,000 mesos and I'll add 5 more slots..." 부분 등).
+- **후속 확인 필요**: row5 — 퀘스트/인벤토리 시스템 조사 후 실제 조건부 로직으로 재작업 필요
+  (msw_lua_notes.md "아직 미확인" 섹션 참고). 성공 시 `player.loseMesos`/`player.gainBuddySlots`에 대응하는
+  MSW API도 미확인.
+
+## Thomas.js — Thomas Swift: Amoria Ambassador (NPC 9201022)
+
+- **결과**: `Talk_9201022_ThomasSwift_Henesys.csv` + `Choice_9201022_ThomasSwift_Henesys.csv`,
+  `Talk_9201022_ThomasSwift_Amoria.csv` + `Choice_9201022_ThomasSwift_Amoria.csv` (**한 NPC에 2쌍**)
+- 최상위 분기가 `askMenu`/`askYesNo`가 아니라 **`map.getId() == 100000000` vs `== 680000000`**(현재
+  맵 위치)라서, 지시문의 "quest/item/level/party 상태" 필터에는 안 걸리지만 본질적으로는
+  msw_lua_notes.md의 "제3의 카테고리"(상태 조건부 배타적 분기)와 같은 모양의 최상위 게이트임.
+  다만 이 경우는 **퀘스트/아이템처럼 조회 API가 필요한 상태가 아니라 "NPC가 어느 맵에 있는가"**라서,
+  MSW에서는 애초에 이 NPC를 헤네시스와 아모리아 두 곳에 **별개의 엔티티로 배치**하면 자연스럽게
+  해결되는 문제로 판단 — 코드 하나를 조건부로 두는 대신 맵별로 독립된 Talk/Choice 테이블 쌍 2개로
+  분리해 변환함(각 배치는 그 자체로 정상적인 askYesNo 메뉴 분기).
+  각 쌍 내부: `selection==1`→"I hope you had a great time..." + `player.changeMap` 부수효과(row2),
+  `selection==0`→"Ok, feel free to hang around..."(row3). 두 맵 버전이 텍스트까지 거의 동일함(원문 그대로 반영).
+- 태그/색상코드 없음.
+
+## out_tree.js — Scarf Snowman (NPC 2001004)
+
+- **결과**: `Talk_2001004_ScarfSnowman.csv`, `Choice_2001004_ScarfSnowman.csv`
+- 구조: `askYesNo` 1개. `selection==1`→`player.changeMap(209000000)` 부수효과만(대사 없음).
+  `selection==0`(else)→row2("You need more time decorating trees...").
+- 태그/색상코드 없음.
+
+## begin_jp1.js — Sera (NPC 2100)
+
+- **결과**: `Talk_2100_Sera_TrainingEntrance.csv` + `Choice_2100_Sera_TrainingEntrance.csv` (map 0/3 진입 시),
+  `Talk_2100_Sera_UpperLevel.csv`만(map 1 진입 시, **Choice 파일 없음** — 선택지가 전혀 없는 순수 선형
+  2줄이라 `NpcLinearTalk.lua` 패턴과 동일한 형태이지만, 파일명 일관성을 위해 이 배치 명명 규칙을 유지함).
+- Thomas.js와 동일한 이유로 최상위 `map.getId()` 위치 게이트를 두 맵(입구/상급 훈련실)의 별개 엔티티
+  배치로 해석해 2쌍으로 분리함.
+- TrainingEntrance 쪽: 진짜 메뉴 분기 2단계(중첩 `askYesNo`) — `enterCamp` 질문(row1) → Yes/No,
+  No 쪽에서 다시 `confirm` 질문(row3) → Yes/No. 이 중첩은 플레이어/퀘스트 상태 조건이 아니라 **둘 다
+  실제 플레이어 선택**(연속된 두 번째 메뉴)이라 STATE-DEPENDENT 대상 아님 — 정상 변환함.
+  row2/row4는 각각 `player.changeMap(1)`/`player.changeMap(40000)` 부수효과 동반(기록만 함).
+- 태그/색상코드 없음.
+
+## rank_user.js — (헤더에 NPC ID 명시 안 됨, "레벨 200 도플갱어 NPC")
+
+- **결과**: `Talk_rank_user_LevelUpNPC_Stranger.csv`(Choice 없음, 1줄),
+  `Talk_rank_user_LevelUpNPC_Namesake.csv` + `Choice_rank_user_LevelUpNPC_Namesake.csv`
+- **주의**: 이 배치의 다른 10개 파일과 달리 헤더 주석에 숫자 NPC ID가 없음("Victoria Road: Bowman
+  Instructional School (Map 100000201), ... 첫 전직 맵들에 나타나는 레벨 200 NPC"라고만 설명, 실제로는
+  4개 맵에 각각 다른 이름의 NPC로 등장하는 공용 스크립트로 추정). 저장소 내 스크립트↔NPC ID 매핑 테이블을
+  찾지 못해 파일명(`rank_user`)을 식별자로 사용함 — **실제 NPC ID(들) 확인 후 파일명 교체 필요**.
+- 최상위 분기가 `player.getName() != npc.getNpcName()`(플레이어 자신의 이름과 NPC 이름이 같은지, 즉
+  "이 NPC가 플레이어 자신의 도플갱어인가") — quest/item/level/party 키워드는 아니지만 정체성 상태 체크이므로
+  Thomas.js/begin_jp1.js와 같은 방식(최상위 게이트 → 별도 플로우 2개)으로 처리함. 단, 이건 위치가 아니라
+  "같은 NPC를 서로 다른 플레이어가 봤을 때" 다른 결과라 실제로는 엔티티 분리로 해결 불가 — **인게임 로직으로
+  플레이어명/NPC명 비교가 필요**하며 이 비교 API가 MSW에서 확인되지 않음(별도 조사 필요, msw_lua_notes.md에
+  미확인 항목 추가 권장).
+- Stranger 플로우(row1)의 텍스트 `"Hello, I am [NPC name], and I am LEVEL [NPC level]."`은 원문이
+  `npc.getNpcName()`/`npc.getNpcLevel()`을 그대로 삽입하는 동적 문자열이라 하드코딩 불가 — `[NPC name]`/
+  `[NPC level]` 토큰으로 남김(정적 치환 태그가 아니라 매 NPC 인스턴스마다 실제 이름/레벨로 바인딩 필요).
+- Namesake 플로우: `askYesNo` 1개. `selection==0`→"It's okay to take your time..."(row2). `selection==1`→
+  `npc.refreshAppearance()` 부수효과 + "Your other self has been transformed..."(row3). 원본에 주석 처리된
+  "하루 1회 제한" 로직(`/*...*/`)은 죽은 코드라 변환 대상에서 제외(원본에도 미구현 상태로 존재).
+- `#b`/`#k` 색상 코드 제거("Hello, I am #b...#k" 부분).
+
+## 3jobExit.js — Sparkling Crystal (NPC 1061010)
+
+- **결과**: `Talk_1061010_SparklingCrystal.csv`, `Choice_1061010_SparklingCrystal.csv`
+- 구조: `askYesNo` 1개. 내부에 `switch (map.getId())`가 있지만 이건 **대사를 가르는 조건이 아니라
+  `player.changeMap`의 목적지 맵 ID를 계산하는 순수 부수효과 로직**(5개 출발맵 → 5개 도착맵 매핑,
+  `npc.say`/`sayNext` 전혀 없음) — msw_lua_notes.md의 "제3의 카테고리"(대사를 가르는 조건) 정의에
+  해당하지 않으므로 STATE-DEPENDENT 처리 대상 아님. `selection==1`→switch+`changeMap` 부수효과만(대사 없음).
+  `selection==0`은 아무 동작 없음.
+- 태그/색상코드 없음.
+
+---
+
+## 요약
+
+- **변환**: 11/11개 전부 변환 (스킵 없음).
+- **STATE-DEPENDENT placeholder**: 1건 — `Talk_1002003_MrGoldstein.csv` row5 (friend00.js, 소지금/버디
+  목록 용량 조건).
+- **최상위 위치/정체성 게이트로 인해 NPC 1개당 CSV 2쌍으로 분리한 경우**: 3건 — Thomas.js(맵 위치),
+  begin_jp1.js(맵 위치, 그중 UpperLevel은 순수 선형이라 Choice 파일 없음), rank_user.js(플레이어명=NPC명
+  여부, 후자는 진짜 위치 분리로 해결 안 되고 인게임 이름 비교 로직 필요 — 별도 미확인 항목).
+- **미해결 플레이스홀더**: `[Map <dynamic:returnMap>]`(florina1.js, 3곳, 동적 맵 값 — 정적 `#m<id>#`
+  치환과 다른 종류), `[NPC name]`/`[NPC level]`(rank_user.js Stranger 플로우, 동적 자기참조 값).
+- **NPC ID 미확인**: rank_user.js — 헤더에 숫자 ID 없음, 파일명(`rank_user`)을 임시 식별자로 사용.
+- **askYesNo 0/1 매핑 가정**: 전 파일 공통, go_pc.js 선례 그대로 적용(`selection==0`→"Yes",
+  `selection==1`→"No") — 미검증, 틀렸다면 Choice CSV의 라벨만 바꾸면 됨.
+- **`#p`/`#t`/`#m`(정적) 태그**: florina1.js의 `#m110000000#` 1건만 존재, `[Map 110000000]`로 치환 완료.
+
+---
+
+## #4~. 분기형 대화 배치 B (askMenu/askYesNo, 순수 메뉴형 21개 중 나머지 10개)
+
+**정정**: 이 로그의 askYesNo 관련 Yes/No 라벨도 배치 A와 동일한 이유로 코디네이터가 스왑 정정함
+(1=Yes, 0=No가 맞음 — CONVERSION_LOG.md #2 참고). targetRow는 원래도 정확했음.
+
+
+이 배치는 `askMenu`/`askYesNo` 선택지 분기가 있는 NPC 10개 대상. `NpcBranchTalk.lua`/`NpcOptionButton.lua`
+(CONVERSION_LOG.md #2 Mong from Kong 사례)와 동일한 패턴 사용. `CONVERSION_LOG.md`/`CONVERSION_LOG_branchA.md`와의
+병합 충돌을 피하기 위해 별도 파일로 기록.
+
+**공통 규칙**: `askYesNo`의 0/1 반환값은 CONVERSION_LOG.md #2(Mong from Kong)와 동일한 관례를 그대로 따름 —
+`optionIndex`를 원본의 `selection` 숫자값과 동일하게 매칭하고(`selection==0` 분기 → `optionIndex=0`/label="Yes",
+`selection==1` 분기 → `optionIndex=1`/label="No"), 어느 쪽이 실제 "예"/"아니오"에 해당하는지는 **텍스트 내용과 무관하게
+기계적으로** 매핑함. 이 관례가 실제로 맞는지 확인 안 됨 — 여러 파일에서 "Yes" 버튼이 오히려 거절 텍스트로,
+"No" 버튼이 오히려 진행 텍스트로 연결되는 것처럼 보이는 경우가 있는데, 이는 원본 코드 자체가 그렇게 되어
+있어서 그대로 반영한 것(Mong from Kong 사례와 동일한 이슈).
+
+---
+
+## 1. NLC_Taxi.js — NLC Taxi (NPC 9201056)
+
+- **결과**: `Talk_9201056_NLCTaxi.csv`, `Choice_9201056_NLCTaxi.csv`
+- **구조**: `switch (map.getId())`로 두 개의 완전히 독립된 대화 트리(New Leaf City 쪽 / Phantom Forest 쪽)를 가짐.
+  이건 상태 조건부 분기가 아니라 "이 NPC가 물리적으로 배치된 맵이 어디냐"에 따라 아예 다른 대화가 실행되는
+  구조라, 하나의 Talk 테이블에 **두 개의 entry row**(row1: New Leaf City 출발, row6: Phantom Forest 출발)를
+  두는 방식으로 표현함. MSW 쪽 스크립트는 `Entity.CurrentMap`으로 시작 행을 골라야 함(원본의
+  `switch(map.getId())`를 그대로 반영).
+- row3(New Leaf City)과 row6(Phantom Forest) 모두 `askYesNo`. 각각 Yes/No에 따라 `player.changeMap` 부수효과
+  (682000000 / 600000000)와 단순 텍스트로 갈림 — state 의존 없음, 완전히 변환 가능.
+- 색상 코드 `#b`/`#k` 제거(Phantom Forest, Prendergast Mansion, New Leaf City). `#p`/`#t`/`#m` 태그 없음.
+
+## 2. guildquest1_comment.js — Shawn (NPC 9040002)
+
+- **결과**: `Talk_9040002_Shawn.csv`, `Choice_9040002_Shawn.csv`
+- **구조**: `while(loop)` 안에서 `askMenu` 4지선다 반복 FAQ. option0/1/2는 답변 후 다시 메뉴로 루프백(row1),
+  option3은 `loop=false`로 대화 종료.
+- **단순화 노트**: 원본은 최초 프롬프트(`str`)와 재질문(`"Do you have any other questions?"`)의 텍스트가
+  다른데, 우리 CSV 모델은 루프백 시 항상 동일한 row1 텍스트(최초 전체 설명문)를 다시 보여줌 — 매 회차마다
+  "Do you have any other questions?"로 축약되지 않는 사소한 콘텐츠 차이 있음(state-dependent 이슈 아님, 단순
+  반복 텍스트 변형을 CSV 모델이 지원 안 하는 것뿐).
+- `#t4001024#` → `[Item 4001024]` 치환 (row1, row4, row6). `#b` 색상 코드 제거.
+
+## 3. hotel1.js — Hotel Receptionist (NPC 1061100)
+
+- **결과**: `Talk_1061100_HotelReceptionist.csv`, `Choice_1061100_HotelReceptionist.csv`
+- **구조**: 인트로 → `askMenu`(Regular/VIP 사우나) → 각 선택마다 `askYesNo` 확인 → **그 Yes/No 결과가 다시
+  `player.hasMesos(price)` 체크로 갈림(인벤토리/재화 상태 의존)**. 이 중첩 상태 체크는 지침의 "중첩 조건이
+  더 있으면 그 지점에서 멈추고 STATE-DEPENDENT 자리표시자만 남긴다" 규칙 적용 대상.
+- **STATE-DEPENDENT 자리표시자 2개**: row5(Regular, 499메소 체크), row7(VIP, 999메소 체크). 각각
+  `player.hasMesos` 성공/실패 시 원문 텍스트를 placeholder 안에 그대로 남겨둠.
+- Yes/No 관례상 "No" 옵션이 오히려 메소 체크(STATE-DEPENDENT) 쪽으로, "Yes" 옵션이 "다른 서비스도 있으니
+  잘 생각해보라"는 거절성 텍스트로 연결됨 — 위 공통 규칙의 기계적 매핑 결과.
+- 태그/색상코드 없음.
+
+## 4. getAboard.js — Platform Usher: Station Info (NPC 2012006)
+
+- **결과**: `Talk_2012006_PlatformUsher.csv`, `Choice_2012006_PlatformUsher.csv`
+- 표시 이름은 원본 "Platform Usher: Station Info"에서 부제 제외하고 "Platform Usher"만 사용(Cody/MapleClaws
+  선례와 동일한 처리).
+- **구조**: `askMenu`(플랫폼 5택) → 선택한 목적지에 따라 다른 `askYesNo` 확인문 → Yes/No 결과는 `player.changeMap`
+  부수효과 또는 단순 텍스트로 갈림. 중첩된 state 체크 없음(맵 선택에 따른 문구 차이는 이미 플레이어의 메뉴
+  선택으로 결정되는 것이라 상태 조건부가 아님) — **완전히 변환 가능**.
+- 5개 목적지 중 3개(엘리니아/루디브리엄/레아프레)는 "No" 응답 텍스트에 "정해진 시간표가 있으니 놓치지 마라"
+  문장이 추가로 붙음 — row7/row8로 분리해서 반영.
+- 원문 자체 오탈자: case2("레아프레") 확인 문구가 "the ship that heads to Leafre"라고 되어 있는데 메뉴
+  라벨은 "The platform to **Hak** that heads to Leafre"임(Hak vs ship 불일치) — 원문 그대로 보존, 수정 안 함.
+  case4(아리안트) 문구는 원문에 물음표가 아예 빠져있음 — 이것도 원문 그대로 보존.
+  Yes/No 옵션 텍스트만 있고, 실제 `player.changeMap(map, "west00")` 부수효과는 "No"(optionIndex=1) 쪽에
+  연결됨(공통 규칙에 따른 기계적 매핑 결과) — targetRow 빈 값으로 처리하고 로그에 남김.
+- 색상코드 `#b`/`#k` 제거. `#p`/`#t`/`#m` 태그 없음.
+
+## 5. guild_mark.js — Lea: Guild Emblem Creator (NPC 2010008)
+
+- **결과**: `Talk_2010008_Lea.csv`, `Choice_2010008_Lea.csv`
+- **구조**: 이 파일은 최상위부터 `if (player.getGuildRank() != 1)`라는 플레이어 상태 게이트로 시작함(메뉴에
+  진입하기도 전에 상태 조건부터 있음 — 배치 지시의 "top level은 필터링되어 있다"는 전제가 완전히는 성립하지
+  않는 사례). 그 아래 `askMenu`(등록/삭제)의 각 옵션도 진입하자마자 바로 `player.hasGuildEmblem()` 상태
+  체크로 갈림.
+- **STATE-DEPENDENT 자리표시자 3개**:
+  - row1: 최상위 길드 마스터 여부 게이트(길드 마스터 아니면 단일 거절 메시지로 끝, 맞으면 메뉴 진행).
+  - row3(등록 옵션): `player.hasGuildEmblem()` 체크 이후 `askYesNo`(500만 메소) + 그 안에서 다시
+    `player.hasMesos(5000000)` 체크 + `npc.askGuildEmblem()`(엠블럼 패턴 피커) — 중첩이 深해서 이 지점에서
+    멈추고 placeholder로 남김.
+  - row4(삭제 옵션): `player.hasGuildEmblem()` 체크 이후 `askYesNo`(100만 메소) + `player.hasMesos(1000000)`
+    체크 — 동일하게 placeholder 처리.
+- 이 3개 모두 "퀘스트/인벤토리/파티 상태" 범주는 아니고 "길드" 시스템 상태(길드 랭크, 엠블럼 보유 여부,
+  메소)인데, msw_lua_notes.md의 미확인 목록에 길드 시스템이 명시되어 있지 않으므로 별도 확인 필요 항목으로
+  추가해야 함.
+- `#r`/`#b`/`#k` 색상 코드 제거.
+
+## 6. goOutWaitingRoom.js — Crewmember (NPC 1032009/2012002/2012022/2012024/2041001/2082002/2102001)
+
+- **결과**: `Talk_1032009_Crewmember.csv`, `Choice_1032009_Crewmember.csv` (첫 NPC ID로 파일명 대표, 7개 NPC ID
+  모두 동일 스크립트 공유)
+- **구조**: 단순 `askYesNo` 1개. Yes/No에 따라 `player.changeMap(toMap)` 부수효과 또는 단순 텍스트로 갈림.
+  State 의존 없음, 완전 변환.
+- `toMap`은 현재 맵(`map.getId()`)에 따라 결정되는 8-way 매핑 테이블(101000301→101000300,
+  200000112/122/132/152→200000100, 220000111→220000100, 240000111→240000100, 260000110→260000100) —
+  플레이어 상태가 아니라 "이 NPC 인스턴스가 물리적으로 어느 맵에 배치됐는지"에 따른 것이라 7개 NPC 인스턴스
+  전부 각자의 고정 목적지를 갖는 구조. 실제 MSW 구현 시 인스턴스별로 이 표를 참고해 수동 설정 필요(부수효과라
+  CSV의 targetRow는 공통으로 빈 값 처리).
+- 태그/색상코드 없음.
+
+## 7. levelUP.js — KIN (NPC 9900000)
+
+- **결과**: `Talk_9900000_KIN.csv`, `Choice_9900000_KIN.csv`
+- **특이 케이스**: GM 전용 외형 변경 디버그 NPC. `askMenu`(Skin/Hair/Hair Color/Eyes/Eyes Color/Random New
+  Look) 6지선다이지만, 어떤 옵션도 **대사 텍스트가 전혀 없음** — 전부 `npc.askAvatar()`(별도 아바타 피커
+  UI 호출) 또는 `player.setSkin/setFace/setHair` 같은 순수 부수효과로 끝남.
+- 규칙 5(순수 부수효과, 대사 없음)에 해당 — STATE-DEPENDENT가 아니라 그냥 "이 옵션엔 대사가 없다"는
+  케이스. 6개 옵션 전부 `targetRow` 빈 값 처리, 각각의 실제 동작(아바타 피커 종류, 어떤 스타일 배열을
+  넘기는지)을 로그에 남김:
+  - Skin → `npc.askAvatar` with `getAllSkinColors()` → `player.setSkin`
+  - Hair → `getAllHairStyles()` → `player.setHair`
+  - Hair Color → `getAllHairColors()` → `player.setHair`
+  - Eyes → `getAllEyeStyles()` → `player.setFace`
+  - Eyes Color → `getAllEyeColors()` → `player.setFace`
+  - Random New Look → 위 4개 배열에서 무작위로 하나씩 골라 즉시 적용(확인 UI 없음)
+- 아바타 피커(색상/스타일 그리드 선택 UI) 자체가 MSW에 대응 컴포넌트 있는지 미확인 — 별도 조사 필요 항목.
+- `#b`/`#k` 색상 코드 제거(메뉴 라벨).
+
+## 8. crane.js — Hak: Warp Assistant (NPC 2090005)
+
+- **결과**: `Talk_2090005_Hak.csv`, `Choice_2090005_Hak.csv`
+- **원본 소스에 실제 JavaScript 문법 오류 발견**: `argonms-server/scripts/npcs/crane.js`가 그대로는 파싱이
+  안 되는 상태임.
+  1. 66번째 줄: `player.changeMap(info[2];` — 닫는 괄호 누락.
+  2. 79번째 줄: `selectWarp([["Orbis", 6000, 200090310, 200000141], ["Herb Town", 1500, 251000000], "Mu Lung", "Orbis");`
+     — 바깥 배열 리터럴이 "Mu Lung"/"Orbis" 인자 앞에서 닫히지 않음(대괄호 누락), 원래 의도는 아마
+     `selectWarp([[...],[...]], "Mu Lung", "Orbis")`였을 것으로 추정되나 확신할 수 없음.
+- **맵별로 3개의 독립 entry**(NLC_Taxi와 동일하게 `Entity.CurrentMap` 기준 시작 행 분기 필요):
+  - row1 (Map 200000141, Orbis→Mu Lung): 정상 파싱 가능. `askMenu`(1개 옵션뿐이지만 배열이라 메뉴 UI를
+    타는 구조) → 선택 후 **STATE-DEPENDENT**(row2): 크레인 이벤트 도킹 상태 + 6000메소 체크. placeholder 처리.
+  - row3 (Map 251000000, Herb Town→Mu Lung): 정상 파싱 가능하지만, `selectWarp(["Mu Lung", 1500, 250000100],
+    "Orbis", "Mu Lung")` 호출의 `src="Orbis"`가 물리적으로 이 NPC가 있는 맵(Herb Town)과 안 맞음 — 아마
+    Mu Lung Temple 케이스에서 복붙하며 생긴 원본 버그로 추정, 텍스트는 원문 그대로("Orbis"로) 보존.
+    `askYesNo` 이후 **STATE-DEPENDENT**(row4): 1500메소 체크. 게다가 이 체크의 성공/실패 분기 자체가
+    코드상 뒤집혀 있는 것처럼 보임(메소 차감 **실패** 시 `changeMap` 호출, **성공** 시 "메소 충분하냐"는
+    경고 문구 표시) — 원본 버그로 추정, placeholder 텍스트에 그대로 명시.
+  - row6 (Map 250000100, Mu Lung Temple): 위 문법 오류 때문에 **재구성 불가** — `[UNRESOLVED: ...]` 텍스트로
+    남기고 원본 스크립트 수정 후 재변환 필요하다고 명시.
+- **후속 조치 필요**: 이 파일은 원본 저장소(argonms-server) 자체의 버그 가능성이 있음 — 변환보다 원본 확인이
+  선행되어야 함.
+
+## 9. Event00.js — Paul/Jean/Martin/Tony: Event Assistant (NPC 9000000/9000001/9000011/9000013)
+
+- **결과**: `Talk_9000000_EventAssistants.csv`, `Choice_9000000_EventAssistants.csv` (대표 ID 9000000 사용,
+  4개 NPC ID 전부 파일명에 표기하지 않고 로그에 기록)
+- **구조**: `switch(npc.getNpcId())`로 4개 NPC 각각 다른 인트로 대사(1~2줄) + 각기 다른 멘트로 이어지는
+  동일한 3지선다 `askMenu`(이벤트가 뭔지 / 게임 설명 / 같이 가기)로 수렴. option1은 다시 6지선다 서브메뉴
+  (게임별 설명, 전부 순수 정보성 텍스트)로 갈라짐. **state 의존 조건 없음** — `#p<id>#` 태그와 이벤트 설명
+  텍스트만 있는 순수 정적 분기라 완전히 변환 가능.
+- 4개 NPC가 하나의 Talk 테이블에 4개의 독립 entry(row1=Paul, row3=Jean, row6=Martin, row9=Tony)로 들어가고,
+  이후 공용 서브 콘텐츠(row12~20)로 수렴하는 구조 — NLC_Taxi/crane.js와 같은 다중 entry 패턴.
+- `#p9000000#`/`#p9000001#`/`#p9000011#`/`#p9000013#` → `[NPC 9000000]` 등으로 치환.
+  `#e1. #n`/`#e2. #n`/`#e3. #n` 형태의 `#e`/`#n` 색상 코드 및 `#b`/`#r`/`#k` 색상 코드 전부 제거.
+  case2(마지막 옵션) 텍스트의 `#t4031019#` → `[Item 4031019]` 치환.
+- 서브메뉴의 [Vikin] 언급은 원문 그대로 두었음(별도 NPC 이름, 치환 태그 아님).
+
+## 10. begin5.js — Robin (NPC 2003)
+
+- **결과**: `Talk_2003_Robin.csv`, `Choice_2003_Robin.csv`
+- **구조**: `while(true)` 무한 루프 안에서 18지선다 `askMenu`(초보자 FAQ). 모든 옵션이 순수 정적 텍스트
+  (일부는 2~4줄의 연속 `npc.sayNext`), state 의존 조건 전혀 없음 — 완전히 변환 가능. **탈출 옵션 자체가
+  없음**(guildquest1_comment.js와 달리 "됐어요" 같은 종료 선택지가 없어서, 모든 옵션이 답변 후 항상
+  row1으로 루프백함 — 원본 동작 그대로).
+- **규칙 6 해당 사례(대형 FAQ 메뉴)**: 18개 옵션은 msw_lua_notes.md에 언급된 고정 슬롯 UI(예: 6개) 한계를
+  크게 초과함 — `ScrollLayoutGroupComponent` 기반의 스크롤형 선택지 UI 설계가 별도로 필요함(아직 미조사
+  상태, msw_lua_notes.md "아직 미확인" 목록에 이미 존재하는 항목).
+- `#m60000#` → `[Map 60000]` 치환(옵션5 "이 섬에 대해 더 알려줘" 답변 중). `#b`/`#k` 색상 코드 제거.
+  옵션11/15 라벨의 "(S)"/"(K)" 표기는 원문 그대로 보존(태그가 아니라 원문 텍스트의 일부로 판단).
+
+---
+
+## 요약
+
+- **변환 완료: 10/10 파일** (모두 최소한 메뉴 골격까지는 변환함, 규칙 6에 따라 스킵 없이 전부 처리).
+- **STATE-DEPENDENT 자리표시자가 필요했던 파일: 3개**
+  - `hotel1.js` (Hotel Receptionist, 1061100) — 2개 placeholder (Regular/VIP 사우나 메소 체크).
+  - `guild_mark.js` (Lea, 2010008) — 3개 placeholder (최상위 길드마스터 게이트 + 등록/삭제 각각의
+    엠블럼 보유 여부 체크).
+  - `crane.js` (Hak, 2090005) — 2개 placeholder (크레인 이벤트/메소 체크) + 문법 오류로 인한 UNRESOLVED
+    1개(별도 카테고리, state-dependent라기보다 원본 소스 버그).
+- **원본 소스 버그 발견**: `crane.js` — 문법 오류 2건(괄호/대괄호 누락), 확인 필요.
+- **미해결 태그**: 없음(모든 `#p`/`#t`/`#m` 태그는 `[NPC <id>]`/`[Item <id>]`/`[Map <id>]`로 치환 완료,
+  단 실제 이름으로의 최종 치환은 여전히 수동 확인 권장 — 기존 배치들과 동일한 수준).
+- **askYesNo Yes/No 매핑 가정**: 전체 10개 파일 공통으로 Mong from Kong(CONVERSION_LOG.md #2) 관례를
+  기계적으로 적용함. 실제로 맞는지는 미확인 — 틀렸다면 각 파일의 Choice CSV에서 두 옵션의 targetRow를
+  맞바꾸면 됨.
+- **다중 entry 구조를 쓴 파일 3개** (NPC 배치 맵/ID에 따라 오프닝이 갈리는 경우): `NLC_Taxi.js`(맵 2종),
+  `crane.js`(맵 3종), `Event00.js`(NPC ID 4종) — 전부 "row1이 항상 entry"라는 기본 스펙에서 벗어나
+  `Entity.CurrentMap`/NPC ID로 시작 행을 고르는 방식이 필요함을 로그에 명시함.

@@ -1,0 +1,19 @@
+fromRow,optionIndex,label,targetRow
+2,0,What kind of an event is it?,12
+2,1,Explain the event game to me.,13
+2,2,"Alright, let's go!",20
+5,0,What kind of an event is it?,12
+5,1,Explain the event game to me.,13
+5,2,"Alright, let's go!",20
+8,0,What kind of an event is it?,12
+8,1,Explain the event game to me.,13
+8,2,"Alright, let's go!",20
+11,0,What kind of an event is it?,12
+11,1,Explain the event game to me.,13
+11,2,"Alright, let's go!",20
+13,0,Ola Ola,14
+13,1,MapleStory Maple Physical Fitness Test,15
+13,2,Snow Ball,16
+13,3,Coconut Harvest,17
+13,4,OX Quiz,18
+13,5,Treasure Hunt,19

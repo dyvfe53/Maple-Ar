@@ -1,0 +1,7 @@
+fromRow,optionIndex,label,targetRow
+2,0,Regular sauna (499 mesos per use),3
+2,1,VIP sauna (999 mesos per use),4
+3,0,No,6
+3,1,Yes,5
+4,0,No,6
+4,1,Yes,7

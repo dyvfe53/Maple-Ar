@@ -1,4 +1,4 @@
 fromRow,optionIndex,label,targetRow
 1,0,I would like to go back now.,2
-2,0,Yes,3
-2,1,No,
+2,0,No,3
+2,1,Yes,

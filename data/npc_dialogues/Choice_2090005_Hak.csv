@@ -1,0 +1,4 @@
+fromRow,optionIndex,label,targetRow
+1,0,Mu Lung (6000 mesos),2
+3,0,No,5
+3,1,Yes,4

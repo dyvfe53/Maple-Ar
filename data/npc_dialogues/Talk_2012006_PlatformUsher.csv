@@ -1,0 +1,10 @@
+name,portrait,text,isChoice,nextRow
+Platform Usher,,"Orbis Station has lots of platforms available to choose from. You need to choose the one that'll take you to the destination of your choice. Which platform will you take?",true,
+Platform Usher,,"Even if you took the wrong passage you can get back here using the portal, so no worries. Will you move to the platform to the ship that heads to Ellinia?",true,
+Platform Usher,,"Even if you took the wrong passage you can get back here using the portal, so no worries. Will you move to the platform to the ship that heads to Ludibrium?",true,
+Platform Usher,,"Even if you took the wrong passage you can get back here using the portal, so no worries.
+Will you move to the platform to the ship that heads to Leafre?",true,
+Platform Usher,,"Even if you took the wrong passage you can get back here using the portal, so no worries. Will you move to the platform to Hak that heads to Mu Lung?",true,
+Platform Usher,,"Even if you took the wrong passage you can get back here using the portal, so no worries. Will you move to the platform to Geenie that heads to Ariant",true,
+Platform Usher,,"Please make sure you know where you are going and then go to the platform through me. The ride is on schedule so you better not miss it!",false,
+Platform Usher,,"Please make sure you know where you are going and then go to the platform through me.",false,

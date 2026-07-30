@@ -1,0 +1,5 @@
+fromRow,optionIndex,label,targetRow
+3,0,No,5
+3,1,Yes,4
+6,0,No,8
+6,1,Yes,7

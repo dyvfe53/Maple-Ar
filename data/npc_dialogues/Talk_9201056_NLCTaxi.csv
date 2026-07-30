@@ -1,0 +1,10 @@
+name,portrait,text,isChoice,nextRow
+NLC Taxi,,"Hey, there. Want to take a trip deeper into the Masterian wilderness? A lot of this continent is still quite unknown and untamed... so there's still not much in the way of roads. Good thing we've got this baby... We can go offroading, and in style too!",false,2
+NLC Taxi,,"Right now, I can drive you to the Phantom Forest. The old Prendergast Mansion is located there. Some people say the place is haunted!",false,3
+NLC Taxi,,"What do you say...? Want to head over there?",true,
+NLC Taxi,,"Alright! Buckle your seat belt, and let's head to the Mansion!
+It's going to get bumpy!",false,
+NLC Taxi,,"Really? I don't blame you... Sounds like a pretty scary place to me too! If you change your mind, I'll be right here.",false,
+NLC Taxi,,"Hey, there. Hope you had fun here! Ready to head back to New Leaf City?",true,
+NLC Taxi,,"Back to civilization it is! Hop in and get comfortable back there... We'll have you back to the city in a jiffy!",false,
+NLC Taxi,,"Oh, you want to stay and look around some more? That's understandable. If you wish to go back to New Leaf City, you know who to talk to!",false,

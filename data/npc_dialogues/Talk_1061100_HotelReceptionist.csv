@@ -1,0 +1,8 @@
+name,portrait,text,isChoice,nextRow
+Hotel Receptionist,,"Welcome. We're the Sleepywood Hotel. Our hotel works hard to serve you the best at all times. If you are tired and worn out from hunting, how about a relaxing stay at our hotel?",false,2
+Hotel Receptionist,,"We offer two kinds of rooms for service. Please choose the one of your liking.",true,
+Hotel Receptionist,,"You've chosen the regular sauna. Your HP and MP will recover fast and you can even purchase some items there. Are you sure you want to go in?",true,
+Hotel Receptionist,,"You've chosen the VIP sauna. Your HP and MP will recover even faster than that of the regular sauna and you can even find a special item in there. Are you sure you want to go in?",true,
+Hotel Receptionist,,"[STATE-DEPENDENT: checks player.hasMesos(499). If true, deducts 499 mesos and teleports the player to Map 105040401 (Regular Sauna). If false, shows: ""I'm sorry. It looks like you don't have enough mesos. It will cost you 499 mesos to stay at our hotel.""]",false,
+Hotel Receptionist,,"We offer other kinds of services, too, so please think carefully and then make your decision.",false,
+Hotel Receptionist,,"[STATE-DEPENDENT: checks player.hasMesos(999). If true, deducts 999 mesos and teleports the player to Map 105040402 (VIP Sauna). If false, shows: ""I'm sorry. It looks like you don't have enough mesos. It will cost you 999 mesos to stay at our hotel.""]",false,
