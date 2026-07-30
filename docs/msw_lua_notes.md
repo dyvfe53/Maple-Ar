@@ -199,11 +199,16 @@ ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)�
     에디터에서 포탈 두 개를 배치하고 `PortalEntityRef`로 연결하면 끝.
   - **5개(advice00/04/06/07/08.js)**: `portal.showHint(...)` + `portal.abortWarp()` — 워프 없이 툴팁만
     보여주는 튜토리얼 힌트. MSW의 대응 UI(토스트/힌트 컴포넌트)를 아직 특정 못함 — 추가 조사 필요.
-  - **17개(market00~17.js)**: 자유시장(Free Market) 출입 포탈 — 입장 전 위치를 기억했다가 퇴장 시 그 자리로
-    돌려보내는 패턴(`resetRememberedMap`). **`_DataStorageService:GetUserDataStorage(userId)`로 구현
-    가능해 보임** (아래 참고) — 이 17개는 사실상 동일한 로직 + 각자 다른 fallback 목적지만 다름.
+  - **17개(market00~17.js)**: 자유시장(Free Market) 출입 포탈 — 처음엔 전부 "출구(귀속위치 복귀)"로
+    잘못 분류했었으나 재확인 결과 **market00.js 1개만 출구**(`resetRememberedMap` 사용, 자유시장→원래
+    위치로 복귀)이고, **market01~17.js 16개는 전부 입구**(각 마을→자유시장, `portal.rememberMap("FREE_MARKET")`
+    호출 후 고정 목적지 910000000/out00로 워프 — 16개 스크립트 본문이 완전히 동일, 배치된 맵만 다름).
   - **2개(q2073.js, party1.js)**: 퀘스트/이벤트 인스턴스 상태로 통과 여부 결정 — task #5/#10과 동일한
     퀘스트 시스템 의존성에 걸림.
+  - **"기억(remember)"이 실제로 언제 저장되는지**: ArgonMS Java 소스 확인 결과, 자유시장은 사실
+    `LocalChannelCommandTarget.java`에서 **맵 ID 범위(자유시장 맵)에 들어갈 때 서버가 자동으로 기억**하는
+    로직도 있고, `portal.rememberMap("FREE_MARKET")` 스크립트 호출도 있음(이중 보장). MSW 설계에서는
+    입구 포탈 스크립트에서 명시적으로 저장하는 방식만 채택(자동 맵-진입 훅은 범위가 더 넓어 재현 어려움).
 
 ## 영구 데이터 저장 — DataStorageService 확인
 
@@ -214,9 +219,22 @@ ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)�
 - 이게 확인되면 market*.js 포탈의 "돌아갈 위치 기억" 로직(퇴장 시 원래 있던 맵으로 복귀)을 유저별 영구
   데이터로 구현 가능 — ArgonMS의 `player.getMap()`을 세션 DB에 저장하는 방식과 개념적으로 동일.
 
+## TeleportService 확인 (market00.js 출구 포탈용)
+
+- `_TeleportService:TeleportToMapPosition(targetEntity, destinationPosition, destinationMapName)` —
+  Entity를 다른 맵의 특정 좌표로 순간이동. `TeleportToEntity(targetEntity, destinationEntity)`,
+  `TeleportToEntityPath(targetEntity, path)`도 있음(고정 목적지일 때 더 간단할 수 있음).
+  `PortalUseEvent.PortalUser`(Entity) / `PlayerComponent.UserId`(string)도 확인 완료.
+- 여전히 미확인: `Vector3(...)` 생성자 정확한 시그니처, `TransformComponent.Position` 필드명(x/y 대소문자 등).
+
+## `UserDataStorage` 확인 완료
+
+- `_DataStorageService:GetUserDataStorage(userId)` → `UserDataStorage`.
+- `storage:GetAndWait(key)` → `(int32 errorCode, string value)`. `storage:SetAndWait(key, value)` →
+  `int32 errorCode`. Batch 버전(`BatchGetAndWait` 등)도 있음. (참고: `Misc/UserDataStorage` 페이지 확인)
+
 ## 아직 미확인 (추가 조사 필요)
 
-- `UserDataStorage`의 실제 Get/Set 메서드 시그니처 (market*.js 포탈 변환 전 확인 필요).
 - 힌트/툴팁 UI 컴포넌트 (advice*.js 포탈 5개, `portal.showHint`에 대응하는 것 — `ChatBalloonComponent` 응용
   가능성 있음, 미확인).
 - `ScrollLayoutGroupComponent`(선택지 많은 메뉴에 필요할 수 있음) 상세.

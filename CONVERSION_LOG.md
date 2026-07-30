@@ -859,3 +859,36 @@ go_pc.js 선례(CONVERSION_LOG.md #2)를 그대로 따름: **`selection == 0` �
 - **다중 entry 구조를 쓴 파일 3개** (NPC 배치 맵/ID에 따라 오프닝이 갈리는 경우): `NLC_Taxi.js`(맵 2종),
   `crane.js`(맵 3종), `Event00.js`(NPC ID 4종) — 전부 "row1이 항상 entry"라는 기본 스펙에서 벗어나
   `Entity.CurrentMap`/NPC ID로 시작 행을 고르는 방식이 필요함을 로그에 명시함.
+
+---
+
+## #6 (일부). 포탈 스크립트 27개 — 사전조사 + 자유시장 출입구 19개 변환
+
+`argonms-server/scripts/portals/*.js` 27개를 전수 분류(자세한 근거는 `docs/msw_lua_notes.md` "포탈(Portal)"
+절 참고):
+
+- **2개 (enter_nautil.js, ninjaAmbush.js)**: 조건 없는 단순 워프 — **변환 결과물 없음**(의도적).
+  MSW 에디터에서 포탈 두 개를 배치하고 `PortalComponent.PortalEntityRef`로 서로 연결하면 스크립트 없이
+  동일하게 동작함.
+- **17개 (market00~17.js, 자유시장 출입구)**: 처음엔 전부 "출구"로 잘못 분류했다가 재확인 후 정정 —
+  **market00.js 1개만 출구**(귀속 위치로 복귀), **market01~17.js 16개는 입구**(마을→자유시장, 스크립트
+  본문이 16개 전부 동일). 아래 2개 재사용 스크립트로 변환:
+  - `scripts/components/FreeMarketEntrance.lua` — 16개 입구 포탈에 동일하게 부착. 실제 워프는
+    `PortalEntityRef`로 디자인타임 연결(스크립트 불필요), 이 스크립트는 "돌아올 위치 기억"만 담당
+    (`PortalUseEvent` 시점에 `_DataStorageService:GetUserDataStorage(userId):SetAndWait(...)`로
+    현재 맵 이름+좌표 저장).
+  - `scripts/components/FreeMarketExit.lua` — market00.js 1개에 대응. 저장된 위치를 읽어(`GetAndWait`)
+    `_TeleportService:TeleportToMapPosition(...)`로 동적 텔레포트. 목적지가 플레이어마다 달라 정적
+    `PortalEntityRef` 연결로는 불가능해서 스크립트가 필요한 유일한 케이스.
+  - ArgonMS는 맵을 정수 ID로 식별하지만 MSW는 자체 제작 맵이라 이름(문자열) 기준으로 재설계 — 원본의
+    "Perion/spawnPoint 28" 같은 기본값은 MSW 쪽 실제 맵 이름/좌표로 사람이 다시 채워야 함
+    (`defaultMapName`/`defaultX`/`defaultY` 프로퍼티로 노출해둠).
+  - **미검증**: `TransformComponent.Position`의 실제 필드명(x/y 대소문자 등), `Vector3(...)` 생성자
+    시그니처, `TeleportToMapPosition`이 다른 맵으로의 순간이동까지 실제로 지원하는지(설명상 지원하는
+    것으로 보이나 실행 예제를 직접 보지 못함).
+- **5개 (advice00/04/06/07/08.js)**: `portal.showHint`+`portal.abortWarp` — 워프 없는 튜토리얼 힌트.
+  MSW의 대응 UI 미확인 — **미변환**, 추가 조사 필요.
+- **2개 (q2073.js, party1.js)**: 퀘스트/이벤트 인스턴스 상태 의존 — task #5/#10과 동일한 사유로 **미변환**,
+  퀘스트 시스템 조사 후 처리 예정.
+
+**요약**: 27개 중 19개(2 스크립트없음 + 17 자유시장) 처리, 7개(힌트 5 + 퀘스트의존 2) 보류.
