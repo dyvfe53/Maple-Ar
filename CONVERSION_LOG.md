@@ -962,3 +962,51 @@ go_pc.js 선례(CONVERSION_LOG.md #2)를 그대로 따름: **`selection == 0` �
     재조정 필요.
 
 **요약**: 3개 전부 변환 완료(고물상자, nut, 달맞이꽃).
+
+---
+
+## #8. 이벤트 스크립트 11개 — 패턴 3종으로 분류, 1종만 구현
+
+`argonms-server/scripts/events/*.js` (총 915줄). NPC 대화와 달리 이 스크립트들은 "인스턴스 맵/파티
+생존주기 관리자"라, MSW의 `_RoomService`(인스턴스 룸 생성/이동, task #7 조사 중 발견)가 핵심 대응점.
+전수 조사 결과 3가지 패턴으로 수렴함:
+
+### 패턴 A — 1인용 시간제한 챌린지 인스턴스 (6개, 뼈대 100% 동일)
+
+`change_job.js`, `cloneFight.js`, `ninjaAmbush.js`, `iceDemon.js`, `kairinT.js`, `pigFarm.js`.
+전부 "입장 시 인스턴스로 이동 → 타이머로 시간제한 → 시간초과/맵이탈/접속종료 시 정리" 구조가 동일 —
+차이는 목적지 맵(1~2개), 제한시간(5~10분), 시간초과 시 킥 목적지뿐. `scripts/components/
+SinglePlayerChallengeInstance.lua` 하나로 표현(6개 각각은 이 컴포넌트에 프로퍼티만 다르게 채워 넣으면 됨).
+- 사용: `_RoomService:CreateInstanceRoom`/`GetOrCreateInstanceRoom`(인스턴스 생성), `MoveUserToInstanceRoom`/
+  `MoveUserToStaticRoom`(이동), `_TimerService:SetTimerOnce`(시간제한) — 전부 API Reference로 확인.
+- **미검증**: 유저 접속종료/맵이탈 감지에 정확히 어느 이벤트를 연결해야 하는지, 인스턴스 룸을 명시적으로
+  파괴하는 함수(문서에 안 보여 "유저가 다 빠지면 자동 정리"로 추정), 원본 `map.showTimer`(남은 시간 UI)
+  대응 기능.
+- iceDemon.js/pigFarm.js는 원본이 인스턴스가 아니라 고정 공유 맵(`event.getMap`)을 재사용하는 방식이라
+  동시 두 명이 도전하면 서로 방해되는 한계가 있었음 — MSW의 `CreateInstanceRoom`은 오히려 격리된 인스턴스
+  쪽이 자연스러워서, 이 두 파일은 재현하려면 일부러 인스턴스 대신 공유 맵을 강제해야 함(사소하지만 기록).
+
+### 패턴 B — 파티 기반 인스턴스(파티퀘스트), 멤버 추적+포탈 오버라이드 (2개, 미구현·설계만)
+
+`party1.js`(커닝시티 PQ), `moonrabbit.js`(헤네시스 PQ — task #7의 moonflower.js 리액터와 연동됨,
+155줄로 이 배치에서 가장 긺). 패턴 A보다 훨씬 복잡: 파티 리더/멤버 개별 추적, 리더가 나가면 전체 추방,
+스테이지별 포탈 오버라이드(`overridePortal`/`revertPortal`), 남은 시간 재계산(`Date.getTime()` 기반).
+- `_RoomService:CreateInstanceRoom`+`MoveUsersToInstanceRoom`(복수 유저 버전)으로 파티 전체를 한 인스턴스에
+  넣는 것까지는 확실히 대응됨. 하지만 **포탈 오버라이드(스테이지 클리어 전엔 다음 스테이지 포탈 막기)에
+  대응하는 MSW 기능은 조사 못함** — `PortalComponent.Enable`을 스크립트로 껐다 켜는 정도로 대체 설계
+  가능해 보이나 미검증.
+- 코드량과 불확실성이 커서 이번 세션에서는 **구현하지 않고 이 설계 방향만 기록**.
+
+### 패턴 C — 월드 전역 반복 스케줄 이벤트, 플레이어 개별 아님 (3개, 미구현·설계만)
+
+`crane.js`(무릉↔오르비스 학), `ship_nlc.js`(지하철), `ship_ossyria.js`(배) — 신문물 운행 스케줄.
+다른 8개와 근본적으로 다름: `attachment`로 특정 플레이어를 받지 않고, 서버가 켜져 있는 동안 일정 주기로
+"미도킹→도킹/탑승→출발"을 반복하는 **월드 전역 싱글턴 타이머**(플레이어 이벤트가 아니라 맵 자체에 계속
+붙어있는 로직). MSW에서는 특정 유저/인스턴스에 종속되지 않는 스크립트(맵이나 월드 최상위 엔티티에 부착,
+`_TimerService:SetTimerRepeat`로 반복)로 설계해야 함 — **미구현, 설계 방향만 기록**.
+(참고: `scripts/npcs/crane.js`라는 동명이지만 완전히 다른 파일이 이미 분기형 NPC 배치B에서
+`Choice_2090005_Hak.csv` 등으로 변환됨 — 그건 학 타는 곳의 NPC 대화, 이건 학 자체의 운행 스케줄로 서로 무관.)
+
+**요약**: 11개 중 6개(패턴 A, 1인용 시간제한 챌린지)는 재사용 컴포넌트(`SinglePlayerChallengeInstance.lua`)로
+변환, 2개(패턴 B, 파티 인스턴스)와 3개(패턴 C, 월드 스케줄)는 핵심 대응 API(`_RoomService` 복수유저 이동,
+`_TimerService:SetTimerRepeat`)는 확인했으나 세부 미확인 사항이 많아 설계 방향만 기록하고 미구현.

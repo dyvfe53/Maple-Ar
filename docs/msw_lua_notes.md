@@ -279,14 +279,27 @@ ArgonMS의 202개 NPC 중 119개가 `askMenu()`/`askYesNo()`(선택지 분기)�
   - **ArgonMS 숫자 아이템 ID → MSW `itemType` 자산 매핑 방법 미확인** (`_ItemService:CreateItem`의 첫
     인자가 정확히 어떤 값을 받는지 — 공식 예제는 `TestItem`이라는 리터럴 자산 참조로 보임).
 
+## 이벤트 스크립트(task #8) 조사 중 발견한 것 — 인스턴스/파티 시스템
+
+- ArgonMS `scripts/events/*.js` 11개는 3가지 패턴으로 수렴: (A) 1인용 시간제한 인스턴스 챌린지 6개
+  (B) 파티 기반 인스턴스(멤버추적+포탈오버라이드) 2개 (C) 월드 전역 반복 스케줄(플레이어 비종속) 3개.
+  자세한 내용은 `CONVERSION_LOG.md` #8 참고. 패턴 A만 재사용 컴포넌트로 구현 완료, B/C는 설계만.
+- 확인된 것: `_RoomService:CreateInstanceRoom`/`GetOrCreateInstanceRoom`/`MoveUserToInstanceRoom`/
+  `MoveUsersToInstanceRoom`(복수)/`MoveUserToStaticRoom`/`MoveUsersToStaticRoom`, `RoomBeginEvent`/
+  `RoomEndEvent`, `_TimerService:SetTimerOnce`(반복은 `SetTimerRepeat`로 이미 다른 곳에서 확인).
+
 ## 아직 미확인 (추가 조사 필요)
 
 - 힌트/툴팁 UI 컴포넌트 (advice*.js 포탈 5개, `portal.showHint`에 대응하는 것 — `ChatBalloonComponent` 응용
   가능성 있음, 미확인).
 - `ScrollLayoutGroupComponent`(선택지 많은 메뉴에 필요할 수 있음) 상세.
-- 퀘스트 시스템 내장 여부/컴포넌트명.
-- 몬스터 스폰(`_SpawnService`로 추정), 전투/스탯 컴포넌트명.
-- 인벤토리/아이템 시스템 컴포넌트명(`InventoryComponent` 존재 확인, 상세 미확인).
+- 파티/레벨/직업 확인 API (`s4snipe.js` 류의 상태 조건부 분기, task #10에 필요).
+- 유저의 접속종료/맵이탈을 감지하는 정확한 이벤트 연결 방법, 인스턴스 룸을 명시적으로 파괴하는 함수
+  (문서에 안 보여 "유저가 다 빠지면 자동 정리"로 추정 중).
+- 원본 `map.showTimer`(화면 카운트다운 UI) 대응 기능.
+- 파티퀘스트 스테이지별 포탈 잠금/해제(`overridePortal`/`revertPortal`) 대응 방법 — `PortalComponent.Enable`
+  토글로 대체 가능해 보이나 미검증.
+- ArgonMS 숫자 아이템 ID → MSW `itemType` 자산 매핑 방법 (`_ItemService:CreateItem`의 정확한 인자 형태).
 
 ## ArgonMS ↔ MSW 개념 매핑 (잠정)
 
