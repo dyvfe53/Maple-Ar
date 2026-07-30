@@ -27,3 +27,31 @@
     에디터에서 검증된 적 없음)
   - InteractionComponent + 이 스크립트의 실제 연동 동작
   - 데이터 테이블 CSV를 MSW `_DataService` 테이블로 가져오는 방법(수동 재입력 vs import 기능 존재 여부 미확인)
+
+---
+
+## #2. Mong from Kong (NPC 1052012) — go_pc.js
+
+- **원본**: `argonms-server/scripts/npcs/go_pc.js`
+- **결과**:
+  - `scripts/components/NpcBranchTalk.lua` (재사용, 분기형 대화 컴포넌트 — 이번에 첫 작성)
+  - `scripts/components/NpcOptionButton.lua` (재사용, 선택지 버튼 연결용 — 이번에 첫 작성)
+  - `data/npc_dialogues/1052012_MongFromKong_Talk.csv`
+  - `data/npc_dialogues/1052012_MongFromKong_Choice.csv`
+- **선택 이유**: `askYesNo` 하나만 쓰는 가장 단순한 분기(2지선다) — 분기형 대화의 첫 사례로 적합.
+- **원문의 `askYesNo` 반환값 해석에 대한 불확실성**: ArgonMS Java 소스(`ScriptNpc.askYesNo`)를 확인했지만
+  0/1이 Yes/No 중 무엇인지 코드 자체에서는 확정할 수 없었음. 다른 MapleStory 서버 에뮬레이터들의
+  통상적 관례(0=Yes, 1=No, 클라이언트 버튼 순서 기준)를 따라 `targetRow`를 매핑함 (Choice CSV의
+  `optionIndex=0`→"Yes"→2행, `optionIndex=1`→"No"→3행). **이 관례가 실제로 맞는지 확인 안 됨** —
+  틀렸다면 두 응답이 서로 바뀌는 정도의 문제이므로 나중에 쉽게 고칠 수 있음.
+- **설계 도중 발견/수정한 오류**:
+  1. 처음에는 "선택지 행을 임의의 `id`로 검색"하는 설계였는데, `_DataService` API Reference를 확인해보니
+     `GetCell(row, col)`은 행 **번호**로만 접근 가능하고 값으로 검색하는 함수가 없음을 확인.
+     → 별도 id/검색 없이 "행 번호 자체를 id로 취급"하는 방식으로 단순화 (docs/msw_lua_notes.md 참고).
+  2. 버튼 클릭 시 "어느 행으로 점프할지"를 버튼에 임시 저장하는 방법으로 처음엔 `TagComponent.Tag`를
+     썼는데, TagComponent API Reference를 확인해보니 그런 속성이 없음(`Tags`라는 리스트+AddTag/RemoveTag만
+     존재)을 발견. → 버튼마다 붙는 전용 스크립트(`NpcOptionButton.lua`)의 `targetRow` 프로퍼티에 저장하는
+     방식으로 수정.
+- **미검증 상태**: `NpcLinearTalk.lua`와 동일한 항목들에 더해, 버튼→NPC 컴포넌트 간 교차 참조
+  (`btn.NpcOptionButton.targetRow = ...`, `self.npcEntity.NpcBranchTalk:OnOptionChosen(...)`)가
+  실제로 동작하는지가 가장 큰 미검증 리스크.

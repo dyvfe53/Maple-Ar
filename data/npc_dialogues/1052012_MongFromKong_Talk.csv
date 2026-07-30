@@ -1,0 +1,4 @@
+name,portrait,text,isChoice,nextRow
+Mong from Kong,,"Aren't you connected through the Internet Cafe? If so, then go in here ... you'll probably head to a familiar place. What do you think? Do you want to go in?",true,
+Mong from Kong,,"You must be busy, huh? But if you're logging on from the internet cafe, then you should try going in. You may end up in a strange place once inside.",false,
+Mong from Kong,,"Hey, hey ... I don't think you're logging on from the internet cafe. You can't enter this place if you are logging on from home ...",false,
